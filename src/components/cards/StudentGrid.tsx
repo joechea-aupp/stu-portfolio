@@ -10,7 +10,7 @@ export function StudentGrid({ students }: StudentGridProps) {
   return (
     <section className="pt-8 pb-12">
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-        {students.slice(0, 5).map((student) => (
+        {students.map((student) => (
           <StudentCard key={student.id} student={student} />
         ))}
         <SubmitPortfolioCard />

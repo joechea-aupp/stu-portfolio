@@ -17,6 +17,8 @@ const initialFilters: FilterState = {
   availableOnly: false,
 };
 
+const PAGE_SIZE = 2;
+
 const defaultTheme: ThemeName = "classic";
 
 function matchesQuery(student: Student, query: string) {
@@ -44,6 +46,12 @@ export function DirectoryApp() {
   });
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const updateFilters = (updater: (current: FilterState) => FilterState) => {
+    setFilters(updater);
+    setPage(1);
+  };
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -65,6 +73,9 @@ export function DirectoryApp() {
     });
   }, [filters]);
 
+  const pageCount = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
+  const paginatedStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const toggleListValue = <T extends string>(currentValues: T[], value: T): T[] => {
     return currentValues.includes(value)
       ? currentValues.filter((item) => item !== value)
@@ -72,7 +83,7 @@ export function DirectoryApp() {
   };
 
   const toggleMajor = (major: string) => {
-    setFilters((current) => ({
+    updateFilters((current) => ({
       ...current,
       majors: toggleListValue(current.majors, major),
     }));
@@ -87,9 +98,9 @@ export function DirectoryApp() {
           filters={filters}
           onToggleMajor={toggleMajor}
           onAvailabilityChange={(availableOnly) =>
-            setFilters((current) => ({ ...current, availableOnly }))
+            updateFilters((current) => ({ ...current, availableOnly }))
           }
-          onReset={() => setFilters(initialFilters)}
+          onReset={() => { setFilters(initialFilters); setPage(1); }}
         />
 
         <main className="w-full px-4 pb-6 sm:px-6 lg:px-8">
@@ -109,7 +120,7 @@ export function DirectoryApp() {
           <DirectoryHero />
           <DirectorySearch
             value={filters.query}
-            onChange={(query) => setFilters((current) => ({ ...current, query }))}
+            onChange={(query) => updateFilters((current) => ({ ...current, query }))}
           />
 
           <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
@@ -117,7 +128,7 @@ export function DirectoryApp() {
           </div>
 
           {filteredStudents.length > 0 ? (
-            <StudentGrid students={filteredStudents} />
+            <StudentGrid students={paginatedStudents} />
           ) : (
             <div className="mt-8 border-[3px] border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-8 text-center">
               <p className="font-heading text-4xl uppercase text-[var(--color-brand)]">No students found</p>
@@ -126,7 +137,29 @@ export function DirectoryApp() {
               </p>
             </div>
           )}
-        </main>
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-4 pb-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="border border-[var(--color-border-strong)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+              >
+                ← Prev
+              </button>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                Page {page} of {pageCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                disabled={page === pageCount}
+                className="border border-[var(--color-border-strong)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+              >
+                Next →
+              </button>
+            </div>
+          )}        </main>
       </div>
 
       <Footer />
@@ -137,9 +170,9 @@ export function DirectoryApp() {
         filters={filters}
         onToggleMajor={toggleMajor}
         onAvailabilityChange={(availableOnly) =>
-          setFilters((current) => ({ ...current, availableOnly }))
+          updateFilters((current) => ({ ...current, availableOnly }))
         }
-        onReset={() => setFilters(initialFilters)}
+        onReset={() => { setFilters(initialFilters); setPage(1); }}
       />
     </div>
   );
