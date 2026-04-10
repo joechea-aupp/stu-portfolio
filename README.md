@@ -7,6 +7,7 @@ A responsive student portfolio directory built with Next.js. Features instant fi
 - **Next.js 16** (App Router, standalone output)
 - **TypeScript**
 - **Tailwind CSS v4**
+- **Prisma ORM**
 - **MySQL 8.4**
 - **Docker / Docker Compose**
 
@@ -75,8 +76,30 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `MYSQL_DATABASE` | Database name |
 | `MYSQL_USER` | App database user |
 | `MYSQL_PASSWORD` | App database user password |
+| `DATABASE_URL` | Prisma/MySQL connection string used by local Node.js runtime |
 
-The `DATABASE_URL` consumed by the app is assembled automatically in `docker-compose.yml`.
+Inside Docker, `DATABASE_URL` is assembled automatically in `docker-compose.yml`.
+For local development outside Docker, set `DATABASE_URL` in `.env` (see `.env.example`).
+
+---
+
+## Prisma ORM
+
+After your `.env` is configured and MySQL is running:
+
+```bash
+# Generate Prisma Client
+npm run db:generate
+
+# Create/apply migrations during development
+npm run db:migrate
+
+# Push schema without migrations (optional)
+npm run db:push
+
+# Open Prisma Studio
+npm run db:studio
+```
 
 ---
 
