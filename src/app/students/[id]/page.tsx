@@ -54,6 +54,7 @@ export function generateStaticParams() {
 }
 
 const ACHIEVEMENTS_PER_PAGE = 5;
+const PROJECTS_PER_PAGE = 5;
 
 export default async function StudentPortfolioPage({
   params,
@@ -89,9 +90,26 @@ export default async function StudentPortfolioPage({
           : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-brand)]";
   const achievementStarClass = verifiedAchievements > 5 ? "achievement-star-blink" : "";
 
-  const pageParam = resolvedSearchParams.page;
-  const requestedPage = Array.isArray(pageParam) ? pageParam[0] : pageParam;
-  const parsedPage = Number.parseInt(requestedPage ?? "1", 10);
+  const projectPageParam = resolvedSearchParams.projectPage;
+  const requestedProjectPage = Array.isArray(projectPageParam)
+    ? projectPageParam[0]
+    : projectPageParam;
+  const parsedProjectPage = Number.parseInt(requestedProjectPage ?? "1", 10);
+  const totalProjectPages = Math.max(1, Math.ceil(student.projects.length / PROJECTS_PER_PAGE));
+  const currentProjectPage = Number.isFinite(parsedProjectPage)
+    ? Math.min(Math.max(parsedProjectPage, 1), totalProjectPages)
+    : 1;
+  const startProjectIndex = (currentProjectPage - 1) * PROJECTS_PER_PAGE;
+  const visibleProjects = student.projects.slice(
+    startProjectIndex,
+    startProjectIndex + PROJECTS_PER_PAGE,
+  );
+
+  const achievementPageParam = resolvedSearchParams.achievementPage;
+  const requestedAchievementPage = Array.isArray(achievementPageParam)
+    ? achievementPageParam[0]
+    : achievementPageParam;
+  const parsedPage = Number.parseInt(requestedAchievementPage ?? "1", 10);
   const totalAchievementPages = Math.max(
     1,
     Math.ceil(student.achievements.length / ACHIEVEMENTS_PER_PAGE),
@@ -106,11 +124,11 @@ export default async function StudentPortfolioPage({
     startAchievementIndex + ACHIEVEMENTS_PER_PAGE,
   );
 
-  const buildAchievementPageHref = (targetPage: number) => {
+  const buildProjectPageHref = (targetPage: number) => {
     const params = new URLSearchParams();
 
     Object.entries(resolvedSearchParams).forEach(([key, value]) => {
-      if (key === "page" || value === undefined) return;
+      if (key === "projectPage" || value === undefined) return;
 
       if (Array.isArray(value)) {
         value.forEach((item) => params.append(key, item));
@@ -121,7 +139,29 @@ export default async function StudentPortfolioPage({
     });
 
     if (targetPage > 1) {
-      params.set("page", String(targetPage));
+      params.set("projectPage", String(targetPage));
+    }
+
+    const query = params.toString();
+    return query ? `/students/${student.id}?${query}` : `/students/${student.id}`;
+  };
+
+  const buildAchievementPageHref = (targetPage: number) => {
+    const params = new URLSearchParams();
+
+    Object.entries(resolvedSearchParams).forEach(([key, value]) => {
+      if (key === "achievementPage" || value === undefined) return;
+
+      if (Array.isArray(value)) {
+        value.forEach((item) => params.append(key, item));
+        return;
+      }
+
+      params.set(key, value);
+    });
+
+    if (targetPage > 1) {
+      params.set("achievementPage", String(targetPage));
     }
 
     const query = params.toString();
@@ -193,117 +233,169 @@ export default async function StudentPortfolioPage({
               <p className="mt-4 text-sm leading-7 text-[var(--color-text)]">{student.summary}</p>
 
               <div className="mt-4 space-y-4">
-                <section className="border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Project timeline</p>
-                  <ul className="mt-3 space-y-3">
-                    {student.projects.map((project) => (
-                      <li key={`${project.period}-${project.title}`} className="grid grid-cols-[86px_1fr] gap-3">
-                        <p className="pt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-accent)]">
-                          {project.period}
-                        </p>
-                        <div>
-                          <p className="text-sm font-semibold text-[var(--color-text)]">{project.title}</p>
-                          {project.details ? (
-                            <p className="mt-1 text-xs leading-6 text-[var(--color-text-muted)]">{project.details}</p>
-                          ) : null}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+                {student.projects.length > 0 && (
+                  <section className="border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Project timeline</p>
+                    <ul className="mt-3 space-y-3">
+                      {visibleProjects.map((project) => (
+                        <li key={`${project.period}-${project.title}`} className="grid grid-cols-[86px_1fr] gap-3">
+                          <p className="pt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-accent)]">
+                            {project.period}
+                          </p>
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--color-text)]">{project.title}</p>
+                            {project.details ? (
+                              <p className="mt-1 text-xs leading-6 text-[var(--color-text-muted)]">{project.details}</p>
+                            ) : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {totalProjectPages > 1 && (
+                      <div className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--color-border)] pt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand)]">
+                        <Link
+                          href={buildProjectPageHref(currentProjectPage - 1)}
+                          aria-disabled={currentProjectPage === 1}
+                          className={`border px-3 py-1 transition ${
+                            currentProjectPage === 1
+                              ? "pointer-events-none border-[var(--color-border)] text-[var(--color-text-muted)]"
+                              : "border-[var(--color-border-strong)] hover:bg-[var(--color-brand)] hover:text-white"
+                          }`}
+                        >
+                          Prev
+                        </Link>
 
-                <section className="overflow-hidden border-2 border-[#EFBF04]">
-                  <div className="bg-gradient-to-r from-[#b8860b] via-[#EFBF04] to-[#ffe87c] px-4 py-2">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[oklch(98.5%_0_0)] drop-shadow-sm">Achievement timeline</p>
-                  </div>
-                  <ul className="space-y-3 bg-[var(--color-bg)] px-4 py-4">
-                    {visibleAchievements.map((achievement) => (
-                      <li key={`${achievement.period}-${achievement.title}`} className="grid grid-cols-[86px_1fr] gap-3">
-                        <p className="pt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#EFBF04]">
-                          {achievement.period}
-                        </p>
-                        <div>
-                          <div className="flex items-start gap-2">
-                            <p className="text-sm font-semibold text-[var(--color-text)]">{achievement.title}</p>
-                            {achievement.verifiedBy && (
-                              <span
-                                title={`Verified by ${achievement.verifiedBy.name}`}
-                                className="mt-0.5 shrink-0 rounded-full bg-[#EFBF04] p-0.5 text-[oklch(20%_0_0)]"
-                                aria-label="Verified"
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalProjectPages }, (_, index) => {
+                            const page = index + 1;
+                            const isActive = page === currentProjectPage;
+                            return (
+                              <Link
+                                key={page}
+                                href={buildProjectPageHref(page)}
+                                aria-current={isActive ? "page" : undefined}
+                                className={`border px-2 py-1 transition ${
+                                  isActive
+                                    ? "border-[var(--color-brand)] bg-[var(--color-brand)] text-white"
+                                    : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
+                                }`}
                               >
-                                <svg viewBox="0 0 12 12" fill="none" className="size-3" aria-hidden="true">
-                                  <path d="M2 6.5l2.5 2.5L10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                {page}
+                              </Link>
+                            );
+                          })}
+                        </div>
+
+                        <Link
+                          href={buildProjectPageHref(currentProjectPage + 1)}
+                          aria-disabled={currentProjectPage === totalProjectPages}
+                          className={`border px-3 py-1 transition ${
+                            currentProjectPage === totalProjectPages
+                              ? "pointer-events-none border-[var(--color-border)] text-[var(--color-text-muted)]"
+                              : "border-[var(--color-border-strong)] hover:bg-[var(--color-brand)] hover:text-white"
+                          }`}
+                        >
+                          Next
+                        </Link>
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {student.achievements.length > 0 && (
+                  <section className="overflow-hidden border-2 border-[#EFBF04]">
+                    <div className="bg-gradient-to-r from-[#b8860b] via-[#EFBF04] to-[#ffe87c] px-4 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[oklch(98.5%_0_0)] drop-shadow-sm">Achievement timeline</p>
+                    </div>
+                    <ul className="space-y-3 bg-[var(--color-bg)] px-4 py-4">
+                      {visibleAchievements.map((achievement) => (
+                        <li key={`${achievement.period}-${achievement.title}`} className="grid grid-cols-[86px_1fr] gap-3">
+                          <p className="pt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#EFBF04]">
+                            {achievement.period}
+                          </p>
+                          <div>
+                            <div className="flex items-start gap-2">
+                              <p className="text-sm font-semibold text-[var(--color-text)]">{achievement.title}</p>
+                              {achievement.verifiedBy && (
+                                <span
+                                  title={`Verified by ${achievement.verifiedBy.name}`}
+                                  className="mt-0.5 shrink-0 rounded-full bg-[#EFBF04] p-0.5 text-[oklch(20%_0_0)]"
+                                  aria-label="Verified"
+                                >
+                                  <svg viewBox="0 0 12 12" fill="none" className="size-3" aria-hidden="true">
+                                    <path d="M2 6.5l2.5 2.5L10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </span>
+                              )}
+                            </div>
+                            {achievement.details ? (
+                              <p className="mt-1 text-xs leading-6 text-[var(--color-text-muted)]">{achievement.details}</p>
+                            ) : null}
+                            {achievement.verifiedBy && (
+                              <p className="mt-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#EFBF04]">
+                                <svg viewBox="0 0 24 24" fill="none" className="size-3 shrink-0" aria-hidden="true">
+                                  <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
+                                  <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                                 </svg>
-                              </span>
+                                {achievement.verifiedBy.name}
+                                <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">·</span>
+                                <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">{achievement.verifiedBy.role}</span>
+                              </p>
                             )}
                           </div>
-                          {achievement.details ? (
-                            <p className="mt-1 text-xs leading-6 text-[var(--color-text-muted)]">{achievement.details}</p>
-                          ) : null}
-                          {achievement.verifiedBy && (
-                            <p className="mt-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#EFBF04]">
-                              <svg viewBox="0 0 24 24" fill="none" className="size-3 shrink-0" aria-hidden="true">
-                                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
-                                <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                              </svg>
-                              {achievement.verifiedBy.name}
-                              <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">·</span>
-                              <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">{achievement.verifiedBy.role}</span>
-                            </p>
-                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {totalAchievementPages > 1 && (
+                      <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand)]">
+                        <Link
+                          href={buildAchievementPageHref(currentAchievementPage - 1)}
+                          aria-disabled={currentAchievementPage === 1}
+                          className={`border px-3 py-1 transition ${
+                            currentAchievementPage === 1
+                              ? "pointer-events-none border-[var(--color-border)] text-[var(--color-text-muted)]"
+                              : "border-[var(--color-border-strong)] hover:bg-[var(--color-brand)] hover:text-white"
+                          }`}
+                        >
+                          Prev
+                        </Link>
+
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalAchievementPages }, (_, index) => {
+                            const page = index + 1;
+                            const isActive = page === currentAchievementPage;
+                            return (
+                              <Link
+                                key={page}
+                                href={buildAchievementPageHref(page)}
+                                aria-current={isActive ? "page" : undefined}
+                                className={`border px-2 py-1 transition ${
+                                  isActive
+                                    ? "border-[var(--color-brand)] bg-[var(--color-brand)] text-white"
+                                    : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
+                                }`}
+                              >
+                                {page}
+                              </Link>
+                            );
+                          })}
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                  {totalAchievementPages > 1 && (
-                    <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand)]">
-                      <Link
-                        href={buildAchievementPageHref(currentAchievementPage - 1)}
-                        aria-disabled={currentAchievementPage === 1}
-                        className={`border px-3 py-1 transition ${
-                          currentAchievementPage === 1
-                            ? "pointer-events-none border-[var(--color-border)] text-[var(--color-text-muted)]"
-                            : "border-[var(--color-border-strong)] hover:bg-[var(--color-brand)] hover:text-white"
-                        }`}
-                      >
-                        Prev
-                      </Link>
 
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: totalAchievementPages }, (_, index) => {
-                          const page = index + 1;
-                          const isActive = page === currentAchievementPage;
-                          return (
-                            <Link
-                              key={page}
-                              href={buildAchievementPageHref(page)}
-                              aria-current={isActive ? "page" : undefined}
-                              className={`border px-2 py-1 transition ${
-                                isActive
-                                  ? "border-[var(--color-brand)] bg-[var(--color-brand)] text-white"
-                                  : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
-                              }`}
-                            >
-                              {page}
-                            </Link>
-                          );
-                        })}
+                        <Link
+                          href={buildAchievementPageHref(currentAchievementPage + 1)}
+                          aria-disabled={currentAchievementPage === totalAchievementPages}
+                          className={`border px-3 py-1 transition ${
+                            currentAchievementPage === totalAchievementPages
+                              ? "pointer-events-none border-[var(--color-border)] text-[var(--color-text-muted)]"
+                              : "border-[var(--color-border-strong)] hover:bg-[var(--color-brand)] hover:text-white"
+                          }`}
+                        >
+                          Next
+                        </Link>
                       </div>
-
-                      <Link
-                        href={buildAchievementPageHref(currentAchievementPage + 1)}
-                        aria-disabled={currentAchievementPage === totalAchievementPages}
-                        className={`border px-3 py-1 transition ${
-                          currentAchievementPage === totalAchievementPages
-                            ? "pointer-events-none border-[var(--color-border)] text-[var(--color-text-muted)]"
-                            : "border-[var(--color-border-strong)] hover:bg-[var(--color-brand)] hover:text-white"
-                        }`}
-                      >
-                        Next
-                      </Link>
-                    </div>
-                  )}
-                </section>
+                    )}
+                  </section>
+                )}
               </div>
 
               <div className="mt-5">

@@ -195,6 +195,9 @@ export const students: Student[] = [
       { period: "2024", title: "CampusPulse: Real-time Student Event Platform" },
       { period: "2025", title: "PeerGrid: Collaborative Learning Matchmaker" },
       { period: "2026", title: "SignalStack: Student Portfolio Analytics Suite" },
+      { period: "2026", title: "MentorMesh: Alumni Mentorship Routing Service" },
+      { period: "2026", title: "LabLink: Cross-Campus Research Collaboration Board" },
+      { period: "2026", title: "CapstoneCloud: Team Milestone Tracking Workspace" },
     ],
     achievements: [
       {
@@ -314,6 +317,24 @@ export const students: Student[] = [
       github: "https://github.com/aisha-thompson",
       linkedin: "https://linkedin.com/in/aisha-thompson",
       instagram: "https://instagram.com/aisha.thompson.dev",
+    },
+  },
+  {
+    id: "jordan-lee",
+    name: "Jordan Lee",
+    year: "freshman",
+    major: "Computer Science",
+    skills: ["Problem Solving", "HTML", "CSS"],
+    available: false,
+    gpa: 3.2,
+    projects: [],
+    achievements: [],
+    summary:
+      "First-year student exploring product design and software development foundations.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=640&q=80",
+    socialLinks: {
+      linkedin: "https://linkedin.com/in/jordan-lee-student",
     },
   },
 ];
