@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Student } from "@/types/student";
 
 interface StudentCardProps {
@@ -68,13 +69,13 @@ export function StudentCard({
             + Kudo
           </button>
 
-          <button
-            type="button"
+          <Link
+            href={`/students/${student.id}`}
             onClick={() => onViewPortfolio(student.id)}
-            className="w-full bg-[var(--color-brand)] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition hover:bg-[var(--color-accent)]"
+            className="w-full bg-[var(--color-brand)] px-3 py-2 text-center text-[11px] font-bold uppercase tracking-[0.12em] text-white transition hover:bg-[var(--color-accent)]"
           >
-            View
-          </button>
+            View Student Portfolio
+          </Link>
         </div>
       </div>
     </article>

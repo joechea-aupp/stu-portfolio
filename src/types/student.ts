@@ -2,6 +2,12 @@ export type AcademicYear = "freshman" | "sophomore" | "junior" | "senior";
 
 export type ThemeName = "classic" | "slate" | "sunrise";
 
+export interface TimelineItem {
+  period: string;
+  title: string;
+  details?: string;
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -10,6 +16,8 @@ export interface Student {
   skills: string[];
   available: boolean;
   gpa: number;
+  projects: TimelineItem[];
+  achievements: TimelineItem[];
   summary: string;
   imageUrl: string;
 }
