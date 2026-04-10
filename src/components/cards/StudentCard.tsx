@@ -17,6 +17,8 @@ export function StudentCard({
   onViewPortfolio,
   onGiveKudo,
 }: StudentCardProps) {
+  const verifiedAchievements = student.achievements.filter((item) => item.verifiedBy).length;
+
   return (
     <article className="group flex h-full flex-col overflow-hidden border-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] transition-transform duration-200 hover:-translate-y-1">
       <div className="relative h-52 w-full">
@@ -55,6 +57,10 @@ export function StudentCard({
               <circle cx="12" cy="12" r="3"/>
             </svg>
             {portfolioViews}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-[#c9a227] bg-[#fff8dc] px-3 py-1 text-[#9b7b0f]">
+            <span aria-hidden="true">★</span>
+            {verifiedAchievements}
           </span>
         </div>
 
