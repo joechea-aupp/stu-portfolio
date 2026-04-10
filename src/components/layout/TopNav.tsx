@@ -6,7 +6,7 @@ interface TopNavProps {
   onThemeChange: (theme: ThemeName) => void;
 }
 
-const navItems = ["Directory", "Portfolios", "Events", "Library"];
+const navItems = ["Directory"];
 
 export function TopNav({ theme, onThemeChange }: TopNavProps) {
   return (
