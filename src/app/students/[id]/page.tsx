@@ -53,12 +53,17 @@ export function generateStaticParams() {
   return students.map((student) => ({ id: student.id }));
 }
 
+const ACHIEVEMENTS_PER_PAGE = 5;
+
 export default async function StudentPortfolioPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { id } = await params;
+  const resolvedSearchParams = await searchParams;
   const student = students.find((candidate) => candidate.id === id);
 
   if (!student) {
@@ -83,6 +88,45 @@ export default async function StudentPortfolioPage({
           ? "achievement-badge--bronze"
           : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-brand)]";
   const achievementStarClass = verifiedAchievements > 5 ? "achievement-star-blink" : "";
+
+  const pageParam = resolvedSearchParams.page;
+  const requestedPage = Array.isArray(pageParam) ? pageParam[0] : pageParam;
+  const parsedPage = Number.parseInt(requestedPage ?? "1", 10);
+  const totalAchievementPages = Math.max(
+    1,
+    Math.ceil(student.achievements.length / ACHIEVEMENTS_PER_PAGE),
+  );
+  const currentAchievementPage = Number.isFinite(parsedPage)
+    ? Math.min(Math.max(parsedPage, 1), totalAchievementPages)
+    : 1;
+  const startAchievementIndex =
+    (currentAchievementPage - 1) * ACHIEVEMENTS_PER_PAGE;
+  const visibleAchievements = student.achievements.slice(
+    startAchievementIndex,
+    startAchievementIndex + ACHIEVEMENTS_PER_PAGE,
+  );
+
+  const buildAchievementPageHref = (targetPage: number) => {
+    const params = new URLSearchParams();
+
+    Object.entries(resolvedSearchParams).forEach(([key, value]) => {
+      if (key === "page" || value === undefined) return;
+
+      if (Array.isArray(value)) {
+        value.forEach((item) => params.append(key, item));
+        return;
+      }
+
+      params.set(key, value);
+    });
+
+    if (targetPage > 1) {
+      params.set("page", String(targetPage));
+    }
+
+    const query = params.toString();
+    return query ? `/students/${student.id}?${query}` : `/students/${student.id}`;
+  };
 
   return (
     <>
@@ -173,7 +217,7 @@ export default async function StudentPortfolioPage({
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[oklch(98.5%_0_0)] drop-shadow-sm">Achievement timeline</p>
                   </div>
                   <ul className="space-y-3 bg-[var(--color-bg)] px-4 py-4">
-                    {student.achievements.map((achievement) => (
+                    {visibleAchievements.map((achievement) => (
                       <li key={`${achievement.period}-${achievement.title}`} className="grid grid-cols-[86px_1fr] gap-3">
                         <p className="pt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#EFBF04]">
                           {achievement.period}
@@ -211,6 +255,54 @@ export default async function StudentPortfolioPage({
                       </li>
                     ))}
                   </ul>
+                  {totalAchievementPages > 1 && (
+                    <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand)]">
+                      <Link
+                        href={buildAchievementPageHref(currentAchievementPage - 1)}
+                        aria-disabled={currentAchievementPage === 1}
+                        className={`border px-3 py-1 transition ${
+                          currentAchievementPage === 1
+                            ? "pointer-events-none border-[var(--color-border)] text-[var(--color-text-muted)]"
+                            : "border-[var(--color-border-strong)] hover:bg-[var(--color-brand)] hover:text-white"
+                        }`}
+                      >
+                        Prev
+                      </Link>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalAchievementPages }, (_, index) => {
+                          const page = index + 1;
+                          const isActive = page === currentAchievementPage;
+                          return (
+                            <Link
+                              key={page}
+                              href={buildAchievementPageHref(page)}
+                              aria-current={isActive ? "page" : undefined}
+                              className={`border px-2 py-1 transition ${
+                                isActive
+                                  ? "border-[var(--color-brand)] bg-[var(--color-brand)] text-white"
+                                  : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
+                              }`}
+                            >
+                              {page}
+                            </Link>
+                          );
+                        })}
+                      </div>
+
+                      <Link
+                        href={buildAchievementPageHref(currentAchievementPage + 1)}
+                        aria-disabled={currentAchievementPage === totalAchievementPages}
+                        className={`border px-3 py-1 transition ${
+                          currentAchievementPage === totalAchievementPages
+                            ? "pointer-events-none border-[var(--color-border)] text-[var(--color-text-muted)]"
+                            : "border-[var(--color-border-strong)] hover:bg-[var(--color-brand)] hover:text-white"
+                        }`}
+                      >
+                        Next
+                      </Link>
+                    </div>
+                  )}
                 </section>
               </div>
 
