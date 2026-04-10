@@ -73,6 +73,15 @@ export default async function StudentPortfolioPage({
         : verifiedAchievements === 2
           ? "student-card student-card--achievement-bronze"
           : "student-card";
+  const achievementBadgeClass =
+    verifiedAchievements > 5
+      ? "achievement-badge--gold"
+      : verifiedAchievements === 5
+        ? "achievement-badge--silver"
+        : verifiedAchievements === 2
+          ? "achievement-badge--bronze"
+          : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-brand)]";
+  const achievementStarClass = verifiedAchievements > 5 ? "achievement-star-blink" : "";
 
   return (
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-8 sm:px-6 lg:px-8">
@@ -107,7 +116,15 @@ export default async function StudentPortfolioPage({
                 {student.name}
               </h1>
 
-              <PortfolioStats studentId={student.id} />
+              <PortfolioStats
+                studentId={student.id}
+                extraBadge={(
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 ${achievementBadgeClass}`}>
+                    <span aria-hidden="true" className={achievementStarClass}>★</span>
+                    {verifiedAchievements}
+                  </span>
+                )}
+              />
 
               <div className="mt-5 grid grid-cols-2 gap-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand)]">
                 <div className="border border-[var(--color-border-strong)] bg-[var(--color-bg)] px-3 py-2">

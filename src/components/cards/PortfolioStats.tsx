@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useSyncExternalStore } from "react";
 
 const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
@@ -35,7 +36,13 @@ function useStorageCount(key: string, id: string): number {
   );
 }
 
-export function PortfolioStats({ studentId }: { studentId: string }) {
+export function PortfolioStats({
+  studentId,
+  extraBadge,
+}: {
+  studentId: string;
+  extraBadge?: ReactNode;
+}) {
   const views = useStorageCount(PORTFOLIO_VIEWS_STORAGE_KEY, studentId);
   const kudos = useStorageCount(KUDOS_STORAGE_KEY, studentId);
 
@@ -52,6 +59,7 @@ export function PortfolioStats({ studentId }: { studentId: string }) {
         </svg>
         {views}
       </span>
+      {extraBadge}
     </div>
   );
 }
