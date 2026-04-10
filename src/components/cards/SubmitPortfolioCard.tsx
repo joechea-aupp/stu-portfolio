@@ -1,6 +1,6 @@
 export function SubmitPortfolioCard() {
   return (
-    <article className="flex flex-col gap-3 border-[3px] border-[var(--color-accent)] bg-[var(--color-brand)] p-4">
+    <article className="flex flex-col gap-3 border-[3px] border-[var(--color-accent)] bg-[var(--color-brand)] p-4 transition-colors duration-200 hover:border-[var(--color-brand)] hover:bg-[var(--color-accent)]">
       <div>
         <h3 className="font-heading text-[28px] leading-[0.95] uppercase text-white">
           Submit your portfolio
