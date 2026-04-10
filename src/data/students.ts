@@ -262,6 +262,60 @@ export const students: Student[] = [
       linkedin: "https://linkedin.com/in/maya-castillo",
     },
   },
+  {
+    id: "aisha-thompson",
+    name: "Aisha Thompson",
+    year: "junior",
+    major: "Computer Science",
+    skills: ["Next.js", "TypeScript", "Design Systems"],
+    available: true,
+    gpa: 3.8,
+    projects: [
+      { period: "2024", title: "StudioKit: Shared UI Pattern Library" },
+      { period: "2025", title: "PeerPort: Student Portfolio Review Hub" },
+      { period: "2026", title: "SignalBoard: Real-time Club Analytics Dashboard" },
+    ],
+    achievements: [
+      {
+        period: "2024",
+        title: "Won best front-end build at Campus Dev Sprint",
+        verifiedBy: { name: "Mina Alvarez", role: "Engineering Program Lead" },
+      },
+      {
+        period: "2024",
+        title: "Selected to lead the student design systems guild",
+        verifiedBy: { name: "Prof. Claire Fontaine", role: "Dean of Engineering" },
+      },
+      {
+        period: "2025",
+        title: "Published an accessibility checklist adopted by three capstone teams",
+        verifiedBy: { name: "Jordan Patel", role: "Accessibility Mentor" },
+      },
+      {
+        period: "2025",
+        title: "Presented interface scaling patterns at the regional web summit",
+        verifiedBy: { name: "Naomi Brooks", role: "Conference Curator" },
+      },
+      {
+        period: "2026",
+        title: "Released a reusable dashboard template for campus organizations",
+      },
+      {
+        period: "2026",
+        title: "Received the student product craftsmanship award",
+        verifiedBy: { name: "Elliot Rivera", role: "Director of Student Innovation" },
+      },
+    ],
+    summary:
+      "Designing accessible front-end systems and reusable interface tooling for student-led products.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=640&q=80",
+    socialLinks: {
+      github: "https://github.com/aisha-thompson",
+      linkedin: "https://linkedin.com/in/aisha-thompson",
+      instagram: "https://instagram.com/aisha.thompson.dev",
+    },
+  },
 ];
 
 export const yearOptions: { label: string; value: AcademicYear }[] = [
