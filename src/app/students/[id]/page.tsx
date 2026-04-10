@@ -148,10 +148,34 @@ export default async function StudentPortfolioPage({
                           {achievement.period}
                         </p>
                         <div>
-                          <p className="text-sm font-semibold text-[var(--color-text)]">{achievement.title}</p>
+                          <div className="flex items-start gap-2">
+                            <p className="text-sm font-semibold text-[var(--color-text)]">{achievement.title}</p>
+                            {achievement.verifiedBy && (
+                              <span
+                                title={`Verified by ${achievement.verifiedBy.name}`}
+                                className="mt-0.5 shrink-0 rounded-full bg-[#EFBF04] p-0.5 text-[oklch(20%_0_0)]"
+                                aria-label="Verified"
+                              >
+                                <svg viewBox="0 0 12 12" fill="none" className="size-3" aria-hidden="true">
+                                  <path d="M2 6.5l2.5 2.5L10 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </span>
+                            )}
+                          </div>
                           {achievement.details ? (
                             <p className="mt-1 text-xs leading-6 text-[var(--color-text-muted)]">{achievement.details}</p>
                           ) : null}
+                          {achievement.verifiedBy && (
+                            <p className="mt-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#EFBF04]">
+                              <svg viewBox="0 0 24 24" fill="none" className="size-3 shrink-0" aria-hidden="true">
+                                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
+                                <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              </svg>
+                              {achievement.verifiedBy.name}
+                              <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">·</span>
+                              <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">{achievement.verifiedBy.role}</span>
+                            </p>
+                          )}
                         </div>
                       </li>
                     ))}

@@ -2,10 +2,16 @@ export type AcademicYear = "freshman" | "sophomore" | "junior" | "senior";
 
 export type ThemeName = "classic" | "slate" | "sunrise";
 
+export interface Verifier {
+  name: string;
+  role: string;
+}
+
 export interface TimelineItem {
   period: string;
   title: string;
   details?: string;
+  verifiedBy?: Verifier;
 }
 
 export interface SocialLinks {

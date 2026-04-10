@@ -15,7 +15,11 @@ export const students: Student[] = [
       { period: "2025", title: "ModuCity: Modular Micro-Housing Atlas" },
     ],
     achievements: [
-      { period: "2025", title: "Top 3 in the Sustainable Campus Design Challenge" },
+      {
+        period: "2025",
+        title: "Top 3 in the Sustainable Campus Design Challenge",
+        verifiedBy: { name: "Prof. Hanna Müller", role: "Architecture Faculty" },
+      },
       { period: "2025", title: "Invited speaker at Student Urban Futures Day" },
     ],
     summary:
@@ -41,7 +45,11 @@ export const students: Student[] = [
     ],
     achievements: [
       { period: "2025", title: "Presented findings at the Undergraduate Strategy Forum" },
-      { period: "2025", title: "Published in the School of Management research digest" },
+      {
+        period: "2025",
+        title: "Published in the School of Management research digest",
+        verifiedBy: { name: "Dr. Leila Okonkwo", role: "Associate Dean, Management" },
+      },
     ],
     summary:
       "Exploring the intersection of behavioral economics and high-tech manufacturing.",
@@ -66,8 +74,16 @@ export const students: Student[] = [
       { period: "2026", title: "AgriScout: Autonomous Field Drone" },
     ],
     achievements: [
-      { period: "2025", title: "Won Best Prototype in Robotics Build Week" },
-      { period: "2026", title: "Secured faculty grant for field testing" },
+      {
+        period: "2025",
+        title: "Won Best Prototype in Robotics Build Week",
+        verifiedBy: { name: "Prof. Adam Kowalski", role: "Robotics Engineering Faculty" },
+      },
+      {
+        period: "2026",
+        title: "Secured faculty grant for field testing",
+        verifiedBy: { name: "Dr. Sandra Reyes", role: "Research Grants Office" },
+      },
     ],
     summary:
       "Developing low-cost autonomous drone platforms for agricultural monitoring.",
@@ -91,7 +107,11 @@ export const students: Student[] = [
       { period: "2025", title: "Resonant Bodies: AR Sculpture Installation" },
     ],
     achievements: [
-      { period: "2025", title: "Featured in the City Public Arts Showcase" },
+      {
+        period: "2025",
+        title: "Featured in the City Public Arts Showcase",
+        verifiedBy: { name: "Marco Delgado", role: "Curator, City Arts Foundation" },
+      },
       { period: "2026", title: "Received Emerging Artist residency support" },
     ],
     summary:
@@ -142,8 +162,16 @@ export const students: Student[] = [
       { period: "2026", title: "A11yPulse: Accessibility Monitoring Dashboard" },
     ],
     achievements: [
-      { period: "2025", title: "1st place at University Hack Week UI track" },
-      { period: "2026", title: "Dean's Innovation Award for Front-end Engineering" },
+      {
+        period: "2025",
+        title: "1st place at University Hack Week UI track",
+        verifiedBy: { name: "Yuki Tanaka", role: "Senior Engineer, Vercel" },
+      },
+      {
+        period: "2026",
+        title: "Dean's Innovation Award for Front-end Engineering",
+        verifiedBy: { name: "Prof. Claire Fontaine", role: "Dean of Engineering" },
+      },
     ],
     summary:
       "Building high-performance front-end systems with a strong accessibility focus.",
