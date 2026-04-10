@@ -1,6 +1,5 @@
 import type { Student } from "@/types/student";
 import { StudentCard } from "@/components/cards/StudentCard";
-import { SubmitPortfolioCard } from "@/components/cards/SubmitPortfolioCard";
 
 interface StudentGridProps {
   students: Student[];
@@ -13,7 +12,6 @@ export function StudentGrid({ students }: StudentGridProps) {
         {students.map((student) => (
           <StudentCard key={student.id} student={student} />
         ))}
-        <SubmitPortfolioCard />
       </div>
     </section>
   );
