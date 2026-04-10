@@ -22,6 +22,10 @@ export const students: Student[] = [
       "Focusing on sustainable urban modular living systems and brutalist concrete aesthetics.",
     imageUrl:
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=640&q=80",
+    socialLinks: {
+      linkedin: "https://linkedin.com/in/lukas-weber",
+      github: "https://github.com/lukas-weber",
+    },
   },
   {
     id: "sami-al-farsi",
@@ -43,6 +47,10 @@ export const students: Student[] = [
       "Exploring the intersection of behavioral economics and high-tech manufacturing.",
     imageUrl:
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=640&q=80",
+    socialLinks: {
+      linkedin: "https://linkedin.com/in/sami-alfarsi",
+      instagram: "https://instagram.com/sami.alfarsi",
+    },
   },
   {
     id: "erik-janson",
@@ -65,6 +73,10 @@ export const students: Student[] = [
       "Developing low-cost autonomous drone platforms for agricultural monitoring.",
     imageUrl:
       "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=640&q=80",
+    socialLinks: {
+      github: "https://github.com/erik-janson",
+      linkedin: "https://linkedin.com/in/erik-janson",
+    },
   },
   {
     id: "elena-rossi",
@@ -86,6 +98,10 @@ export const students: Student[] = [
       "Mastering digital sculpture and new media installation in public spaces.",
     imageUrl:
       "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=640&q=80",
+    socialLinks: {
+      instagram: "https://instagram.com/elena.rossi.art",
+      facebook: "https://facebook.com/elenarossiart",
+    },
   },
   {
     id: "marcus-chen",
@@ -108,6 +124,9 @@ export const students: Student[] = [
       "Prototyping ergonomic workstations for remote-first environments.",
     imageUrl:
       "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=640&q=80",
+    socialLinks: {
+      linkedin: "https://linkedin.com/in/marcus-chen",
+    },
   },
   {
     id: "nora-kim",
@@ -130,6 +149,11 @@ export const students: Student[] = [
       "Building high-performance front-end systems with a strong accessibility focus.",
     imageUrl:
       "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=640&q=80",
+    socialLinks: {
+      github: "https://github.com/nora-kim",
+      linkedin: "https://linkedin.com/in/nora-kim",
+      instagram: "https://instagram.com/nora.kim.dev",
+    },
   },
 ];
 

@@ -8,6 +8,13 @@ export interface TimelineItem {
   details?: string;
 }
 
+export interface SocialLinks {
+  linkedin?: string;
+  facebook?: string;
+  github?: string;
+  instagram?: string;
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -20,6 +27,7 @@ export interface Student {
   achievements: TimelineItem[];
   summary: string;
   imageUrl: string;
+  socialLinks?: SocialLinks;
 }
 
 export interface FilterState {
