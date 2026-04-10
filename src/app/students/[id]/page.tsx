@@ -64,6 +64,16 @@ export default async function StudentPortfolioPage({
     notFound();
   }
 
+  const verifiedAchievements = student.achievements.filter((item) => item.verifiedBy).length;
+  const achievementTierClass =
+    verifiedAchievements > 5
+      ? "student-card student-card--achievement-gold"
+      : verifiedAchievements === 5
+        ? "student-card student-card--achievement-silver"
+        : verifiedAchievements === 2
+          ? "student-card student-card--achievement-bronze"
+          : "student-card";
+
   return (
     <main className="min-h-screen bg-[var(--color-bg)] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-5xl">
@@ -74,7 +84,9 @@ export default async function StudentPortfolioPage({
           Back to directory
         </Link>
 
-        <section className="mt-5 overflow-hidden border-[3px] border-[var(--color-brand)] bg-[var(--color-surface)]">
+        <section
+          className={`${achievementTierClass} mt-5 overflow-hidden border-2 border-[var(--color-border-strong)] bg-[var(--color-surface)]`}
+        >
           <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr]">
             <div className="relative min-h-[280px] border-b border-[var(--color-border)] lg:min-h-[540px] lg:border-r lg:border-b-0">
               <Image

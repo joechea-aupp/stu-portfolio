@@ -9,6 +9,15 @@
   --color-text-muted: #4f5f77;
   --color-border: #d5dae4;
   --color-border-strong: #0a357a;
+  --achievement-badge-gold-border: #c9a227;
+  --achievement-badge-gold-bg: #fff8dc;
+  --achievement-badge-gold-text: #9b7b0f;
+  --achievement-badge-silver-border: #97a4b5;
+  --achievement-badge-silver-bg: #f2f5f8;
+  --achievement-badge-silver-text: #556476;
+  --achievement-badge-bronze-border: #b87333;
+  --achievement-badge-bronze-bg: #fff3e8;
+  --achievement-badge-bronze-text: #8f4f1d;
 }
 
 @theme inline {
@@ -61,6 +70,65 @@ body {
 .student-card {
   position: relative;
   isolation: isolate;
+}
+
+.achievement-badge--gold {
+  border-color: var(--achievement-badge-gold-border);
+  background-color: var(--achievement-badge-gold-bg);
+  color: var(--achievement-badge-gold-text);
+}
+
+.achievement-badge--silver {
+  border-color: var(--achievement-badge-silver-border);
+  background-color: var(--achievement-badge-silver-bg);
+  color: var(--achievement-badge-silver-text);
+}
+
+.achievement-badge--bronze {
+  border-color: var(--achievement-badge-bronze-border);
+  background-color: var(--achievement-badge-bronze-bg);
+  color: var(--achievement-badge-bronze-text);
+}
+
+.student-card--achievement-bronze {
+  border-color: transparent !important;
+  border-width: 1px !important;
+  background:
+    linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
+    linear-gradient(125deg, #d9a572 0%, #f8ddc4 28%, #b87333 52%, #f4cfac 74%, #8f5a2b 100%) border-box;
+  background-clip: padding-box, border-box;
+  animation: achievement-bronze-border-blink 4.3s ease-in-out infinite;
+  box-shadow:
+    0 0 0 1px rgba(184, 115, 51, 0.9),
+    0 0 0 4px rgba(242, 203, 169, 0.52),
+    0 14px 34px rgba(132, 83, 45, 0.16);
+}
+
+.student-card--achievement-bronze::before {
+  content: none;
+}
+
+.student-card--achievement-bronze::after {
+  content: none;
+}
+
+@keyframes achievement-bronze-border-blink {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(184, 115, 51, 0.88),
+      0 0 0 4px rgba(242, 203, 169, 0.48),
+      0 14px 34px rgba(132, 83, 45, 0.14);
+    filter: brightness(0.97) saturate(0.95);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(213, 147, 89, 1),
+      0 0 0 4px rgba(250, 219, 190, 0.66),
+      0 16px 38px rgba(132, 83, 45, 0.22);
+    filter: brightness(1.06) saturate(1.03);
+  }
 }
 
 .student-card--achievement-silver {
@@ -167,6 +235,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .student-card--achievement-bronze {
+    animation: none;
+  }
+
   .student-card--achievement-silver {
     animation: none;
   }

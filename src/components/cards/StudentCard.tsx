@@ -23,12 +23,16 @@ export function StudentCard({
       ? "student-card student-card--achievement-gold"
       : verifiedAchievements === 5
         ? "student-card student-card--achievement-silver"
+        : verifiedAchievements === 2
+          ? "student-card student-card--achievement-bronze"
         : "student-card";
   const achievementBadgeClass =
     verifiedAchievements > 5
-      ? "border-[#c9a227] bg-[#fff8dc] text-[#9b7b0f]"
+      ? "achievement-badge--gold"
       : verifiedAchievements === 5
-        ? "border-[#97a4b5] bg-[#f2f5f8] text-[#556476]"
+        ? "achievement-badge--silver"
+        : verifiedAchievements === 2
+          ? "achievement-badge--bronze"
         : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-brand)]";
   const achievementStarClass = verifiedAchievements > 5 ? "achievement-star-blink" : "";
 
