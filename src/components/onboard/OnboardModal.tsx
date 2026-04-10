@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 interface OnboardModalProps {
   open: boolean;
@@ -9,6 +10,7 @@ interface OnboardModalProps {
 
 export function OnboardModal({ open, onClose }: OnboardModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -56,6 +58,7 @@ export function OnboardModal({ open, onClose }: OnboardModalProps) {
         {/* M365 SSO */}
         <button
           type="button"
+          onClick={() => router.push("/onboard")}
           className="flex items-center justify-center gap-3 border-[2px] border-[var(--color-brand)] bg-[var(--color-brand)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)]/90 w-full"
         >
           <MicrosoftIcon />
