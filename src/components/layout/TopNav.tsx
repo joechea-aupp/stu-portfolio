@@ -1,3 +1,7 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import type { ThemeName } from "@/types/student";
 
@@ -6,33 +10,43 @@ interface TopNavProps {
   onThemeChange: (theme: ThemeName) => void;
 }
 
-const navItems = ["Directory"];
+const navItems = [
+  { label: "Directory", href: "/" },
+  { label: "Leaderboard", href: "/leaderboard" },
+];
 
 export function TopNav({ theme, onThemeChange }: TopNavProps) {
+  const pathname = usePathname();
+
   return (
     <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="mx-auto flex h-20 max-w-[1280px] items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <a
-          href="#"
+        <Link
+          href="/"
           className="font-heading text-[24px] font-bold uppercase tracking-[0.06em] text-[var(--color-accent)]"
         >
           StudentHub
-        </a>
+        </Link>
 
         <nav className="ml-4 hidden items-center gap-8 md:flex" aria-label="Primary">
-          {navItems.map((item, index) => (
-            <a
-              key={item}
-              href="#"
+          {navItems.map((item) => {
+            const isActive =
+              item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href);
+
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
               className={`border-b-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
-                index === 0
+                isActive
                   ? "border-[var(--color-accent)] text-[var(--color-text)]"
                   : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               }`}
             >
-              {item}
-            </a>
-          ))}
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="ml-auto flex items-center gap-3">

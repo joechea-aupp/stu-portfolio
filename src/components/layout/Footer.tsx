@@ -16,7 +16,7 @@ export function Footer() {
           </a>
         </div>
 
-        <p className="text-[10px] uppercase tracking-[0.16em] text-white/60">2026 American Bauhaus Archive</p>
+        <p className="text-[10px] uppercase tracking-[0.16em] text-white/60">2026 - American University of Phnom Penh</p>
       </div>
     </footer>
   );

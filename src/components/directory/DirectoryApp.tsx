@@ -17,7 +17,7 @@ const initialFilters: FilterState = {
   availableOnly: false,
 };
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
 const KUDOS_STORAGE_KEY = "portfolio-kudos";
 
@@ -162,40 +162,6 @@ export function DirectoryApp() {
     });
   }, [filters]);
 
-  const totalPortfolioViews = useMemo(() => {
-    return students.reduce((total, student) => total + (portfolioViews[student.id] ?? 0), 0);
-  }, [portfolioViews]);
-
-  const totalKudos = useMemo(() => {
-    return students.reduce((total, student) => total + (kudos[student.id] ?? 0), 0);
-  }, [kudos]);
-
-  const maxPortfolioViews = useMemo(() => {
-    return students.reduce((max, student) => Math.max(max, portfolioViews[student.id] ?? 0), 0);
-  }, [portfolioViews]);
-
-  const maxKudos = useMemo(() => {
-    return students.reduce((max, student) => Math.max(max, kudos[student.id] ?? 0), 0);
-  }, [kudos]);
-
-  const topViewedStudent = useMemo(() => {
-    return students.reduce<Student | null>((top, student) => {
-      if (!top) {
-        return student;
-      }
-      return (portfolioViews[student.id] ?? 0) > (portfolioViews[top.id] ?? 0) ? student : top;
-    }, null);
-  }, [portfolioViews]);
-
-  const topKudoedStudent = useMemo(() => {
-    return students.reduce<Student | null>((top, student) => {
-      if (!top) {
-        return student;
-      }
-      return (kudos[student.id] ?? 0) > (kudos[top.id] ?? 0) ? student : top;
-    }, null);
-  }, [kudos]);
-
   const pageCount = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
   const paginatedStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -269,28 +235,6 @@ export function DirectoryApp() {
           <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
             Showing {filteredStudents.length} student{filteredStudents.length === 1 ? "" : "s"}
           </div>
-
-          <section className="mt-4 border-[3px] border-[var(--color-brand)] bg-gradient-to-r from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] p-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Total kudos</p>
-                <p className="mt-1 font-heading text-3xl uppercase leading-none text-[var(--color-brand)]">{totalKudos}</p>
-                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-muted)]">Portfolio views: {totalPortfolioViews}</p>
-              </div>
-              <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Most prestige</p>
-                <p className="mt-1 truncate font-heading text-xl uppercase leading-none text-[var(--color-brand)]">
-                  {topKudoedStudent ? topKudoedStudent.name : "None yet"}
-                </p>
-                <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-muted)]">Top views: {topViewedStudent ? topViewedStudent.name : "None yet"}</p>
-              </div>
-              <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Leading kudos</p>
-                <p className="mt-1 font-heading text-3xl uppercase leading-none text-[var(--color-accent)]">{maxKudos}</p>
-                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-muted)]">Leading views: {maxPortfolioViews}</p>
-              </div>
-            </div>
-          </section>
 
           {filteredStudents.length > 0 ? (
             <StudentGrid
