@@ -18,9 +18,7 @@ export interface FilterState {
   query: string;
   years: AcademicYear[];
   majors: string[];
-  skills: string[];
   availableOnly: boolean;
-  minGpa: number;
 }
 
 export interface FilterOption {

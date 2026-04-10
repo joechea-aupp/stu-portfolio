@@ -15,19 +15,10 @@ const initialFilters: FilterState = {
   query: "",
   years: [],
   majors: [],
-  skills: [],
   availableOnly: false,
-  minGpa: 2.0,
 };
 
 const defaultTheme: ThemeName = "classic";
-
-function includesTerm(values: string[], terms: string[]) {
-  if (terms.length === 0) {
-    return true;
-  }
-  return terms.every((term) => values.some((value) => value.toLowerCase().includes(term.toLowerCase())));
-}
 
 function matchesQuery(student: Student, query: string) {
   if (!query.trim()) {
@@ -65,17 +56,13 @@ export function DirectoryApp() {
       const matchesYear = filters.years.length === 0 || filters.years.includes(student.year);
       const matchesMajor =
         filters.majors.length === 0 || filters.majors.some((major) => student.major === major);
-      const matchesSkills = includesTerm(student.skills, filters.skills);
       const matchesAvailability = !filters.availableOnly || student.available;
-      const matchesGpa = student.gpa >= filters.minGpa;
       const matchesSearchTerm = matchesQuery(student, filters.query);
 
       return (
         matchesYear &&
         matchesMajor &&
-        matchesSkills &&
         matchesAvailability &&
-        matchesGpa &&
         matchesSearchTerm
       );
     });
@@ -101,13 +88,6 @@ export function DirectoryApp() {
     }));
   };
 
-  const toggleSkill = (skill: string) => {
-    setFilters((current) => ({
-      ...current,
-      skills: toggleListValue(current.skills, skill),
-    }));
-  };
-
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
       <TopNav theme={theme} onThemeChange={setTheme} />
@@ -117,11 +97,9 @@ export function DirectoryApp() {
           filters={filters}
           onToggleYear={toggleYear}
           onToggleMajor={toggleMajor}
-          onToggleSkill={toggleSkill}
           onAvailabilityChange={(availableOnly) =>
             setFilters((current) => ({ ...current, availableOnly }))
           }
-          onGpaChange={(minGpa) => setFilters((current) => ({ ...current, minGpa }))}
           onReset={() => setFilters(initialFilters)}
         />
 
@@ -155,7 +133,7 @@ export function DirectoryApp() {
             <div className="mt-8 border-[3px] border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-8 text-center">
               <p className="font-heading text-4xl uppercase text-[var(--color-brand)]">No students found</p>
               <p className="mt-3 text-sm uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                Try broadening filters or lowering the minimum GPA.
+                Try broadening your filters.
               </p>
             </div>
           )}
@@ -170,11 +148,9 @@ export function DirectoryApp() {
         filters={filters}
         onToggleYear={toggleYear}
         onToggleMajor={toggleMajor}
-        onToggleSkill={toggleSkill}
         onAvailabilityChange={(availableOnly) =>
           setFilters((current) => ({ ...current, availableOnly }))
         }
-        onGpaChange={(minGpa) => setFilters((current) => ({ ...current, minGpa }))}
         onReset={() => setFilters(initialFilters)}
       />
     </div>

@@ -1,13 +1,11 @@
-import { majorOptions, skillOptions, yearOptions } from "@/data/students";
+import { majorOptions, yearOptions } from "@/data/students";
 import type { AcademicYear, FilterState } from "@/types/student";
 
 interface FilterPanelProps {
   filters: FilterState;
   onToggleYear: (year: AcademicYear) => void;
   onToggleMajor: (major: string) => void;
-  onToggleSkill: (skill: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
-  onGpaChange: (minGpa: number) => void;
   onReset: () => void;
 }
 
@@ -20,9 +18,7 @@ export function FilterPanel({
   filters,
   onToggleYear,
   onToggleMajor,
-  onToggleSkill,
   onAvailabilityChange,
-  onGpaChange,
   onReset,
 }: FilterPanelProps) {
   return (
@@ -62,23 +58,6 @@ export function FilterPanel({
       </section>
 
       <section>
-        <h3 className={sectionLabelClass}>Skills</h3>
-        <div className="space-y-2 max-h-44 overflow-auto pr-1">
-          {skillOptions.map((skill) => (
-            <label key={skill} className={itemLabelClass}>
-              <input
-                type="checkbox"
-                checked={filters.skills.includes(skill)}
-                onChange={() => onToggleSkill(skill)}
-                className="h-4 w-4 rounded-none border border-[var(--color-border-strong)] accent-[var(--color-accent)]"
-              />
-              {skill}
-            </label>
-          ))}
-        </div>
-      </section>
-
-      <section>
         <h3 className={sectionLabelClass}>Availability</h3>
         <label className={itemLabelClass}>
           <input
@@ -89,22 +68,6 @@ export function FilterPanel({
           />
           Available for projects
         </label>
-      </section>
-
-      <section>
-        <h3 className={sectionLabelClass}>GPA Range</h3>
-        <label className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text)]">
-          Minimum GPA: <span className="text-[var(--color-accent)]">{filters.minGpa.toFixed(1)}</span>
-        </label>
-        <input
-          type="range"
-          min={2}
-          max={4}
-          step={0.1}
-          value={filters.minGpa}
-          onChange={(event) => onGpaChange(Number(event.target.value))}
-          className="mt-3 w-full accent-[var(--color-accent)]"
-        />
       </section>
 
       <button

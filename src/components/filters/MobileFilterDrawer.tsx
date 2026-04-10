@@ -7,9 +7,7 @@ interface MobileFilterDrawerProps {
   filters: FilterState;
   onToggleYear: (year: AcademicYear) => void;
   onToggleMajor: (major: string) => void;
-  onToggleSkill: (skill: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
-  onGpaChange: (minGpa: number) => void;
   onReset: () => void;
 }
 
