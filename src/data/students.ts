@@ -183,6 +183,85 @@ export const students: Student[] = [
       instagram: "https://instagram.com/nora.kim.dev",
     },
   },
+  {
+    id: "maya-castillo",
+    name: "Maya Castillo",
+    year: "senior",
+    major: "Computer Science",
+    skills: ["Distributed Systems", "Product Engineering", "Mentorship"],
+    available: true,
+    gpa: 4.0,
+    projects: [
+      { period: "2024", title: "CampusPulse: Real-time Student Event Platform" },
+      { period: "2025", title: "PeerGrid: Collaborative Learning Matchmaker" },
+      { period: "2026", title: "SignalStack: Student Portfolio Analytics Suite" },
+    ],
+    achievements: [
+      {
+        period: "2024",
+        title: "Won University Hackathon Grand Prize",
+        verifiedBy: { name: "Alicia Moore", role: "Director of Innovation Programs" },
+      },
+      {
+        period: "2024",
+        title: "Selected as Engineering Student Ambassador",
+        verifiedBy: { name: "Prof. Daniel Hart", role: "College of Engineering" },
+      },
+      {
+        period: "2024",
+        title: "Published open-source design system adopted by three student teams",
+        verifiedBy: { name: "Noah Bennett", role: "Lead Front-end Mentor" },
+      },
+      {
+        period: "2025",
+        title: "Presented scalable system design research at regional symposium",
+        verifiedBy: { name: "Dr. Priya Raman", role: "Research Advisor" },
+      },
+      {
+        period: "2025",
+        title: "Received Dean's Award for Technical Leadership",
+        verifiedBy: { name: "Prof. Claire Fontaine", role: "Dean of Engineering" },
+      },
+      {
+        period: "2025",
+        title: "Mentored freshman dev cohort with 95% project completion rate",
+        verifiedBy: { name: "Ethan Brooks", role: "Program Coordinator" },
+      },
+      {
+        period: "2025",
+        title: "Built internal tooling for the student incubator",
+        verifiedBy: { name: "Sara Lopez", role: "Startup Lab Manager" },
+      },
+      {
+        period: "2025",
+        title: "Top speaker at Women in Computing Summit",
+        verifiedBy: { name: "Helena Ortiz", role: "Summit Chair" },
+      },
+      {
+        period: "2026",
+        title: "Secured research grant for applied AI advising tools",
+        verifiedBy: { name: "Dr. Marcus Lee", role: "Research Funding Committee" },
+      },
+      {
+        period: "2026",
+        title: "Named Student Builder of the Year",
+        verifiedBy: { name: "Jasmine Cole", role: "VP, Student Affairs" },
+      },
+      {
+        period: "2026",
+        title: "Launched a campus-wide portfolio review platform",
+        verifiedBy: { name: "Victor Nguyen", role: "Director of Digital Learning" },
+      },
+    ],
+    summary:
+      "Shipping polished campus-scale products while leading peer engineering initiatives and systems design programs.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=640&q=80",
+    socialLinks: {
+      github: "https://github.com/maya-castillo",
+      linkedin: "https://linkedin.com/in/maya-castillo",
+    },
+  },
 ];
 
 export const yearOptions: { label: string; value: AcademicYear }[] = [

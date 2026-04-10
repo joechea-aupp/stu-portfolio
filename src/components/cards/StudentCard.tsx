@@ -18,9 +18,11 @@ export function StudentCard({
   onGiveKudo,
 }: StudentCardProps) {
   const verifiedAchievements = student.achievements.filter((item) => item.verifiedBy).length;
+  const featuredCardClass =
+    verifiedAchievements > 10 ? "student-card student-card--verified-elite" : "student-card";
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden border-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] transition-transform duration-200 hover:-translate-y-1">
+    <article className={`${featuredCardClass} group flex h-full flex-col overflow-hidden border-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] transition-transform duration-200 hover:-translate-y-1`}>
       <div className="relative h-52 w-full">
         <Image
           src={student.imageUrl}
