@@ -296,9 +296,7 @@ export function DirectoryApp() {
             <StudentGrid
               students={paginatedStudents}
               portfolioViews={portfolioViews}
-              maxPortfolioViews={maxPortfolioViews}
               kudos={kudos}
-              maxKudos={maxKudos}
               onViewPortfolio={handleViewPortfolio}
               onGiveKudo={handleGiveKudo}
             />

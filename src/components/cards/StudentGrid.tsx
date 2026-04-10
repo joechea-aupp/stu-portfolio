@@ -4,9 +4,7 @@ import { StudentCard } from "@/components/cards/StudentCard";
 interface StudentGridProps {
   students: Student[];
   portfolioViews: Record<string, number>;
-  maxPortfolioViews: number;
   kudos: Record<string, number>;
-  maxKudos: number;
   onViewPortfolio: (studentId: string) => void;
   onGiveKudo: (studentId: string) => void;
 }
@@ -14,9 +12,7 @@ interface StudentGridProps {
 export function StudentGrid({
   students,
   portfolioViews,
-  maxPortfolioViews,
   kudos,
-  maxKudos,
   onViewPortfolio,
   onGiveKudo,
 }: StudentGridProps) {
@@ -28,9 +24,7 @@ export function StudentGrid({
             key={student.id}
             student={student}
             portfolioViews={portfolioViews[student.id] ?? 0}
-            maxPortfolioViews={maxPortfolioViews}
             kudoCount={kudos[student.id] ?? 0}
-            maxKudos={maxKudos}
             onViewPortfolio={onViewPortfolio}
             onGiveKudo={onGiveKudo}
           />
