@@ -3,9 +3,34 @@ import type { Student } from "@/types/student";
 
 interface StudentCardProps {
   student: Student;
+  portfolioViews: number;
+  maxPortfolioViews: number;
+  onViewPortfolio: (studentId: string) => void;
 }
 
-export function StudentCard({ student }: StudentCardProps) {
+function getPortfolioTrend(views: number): string {
+  if (views >= 15) {
+    return "Campus favorite";
+  }
+  if (views >= 8) {
+    return "Trending";
+  }
+  if (views >= 3) {
+    return "Rising";
+  }
+  return "New";
+}
+
+export function StudentCard({
+  student,
+  portfolioViews,
+  maxPortfolioViews,
+  onViewPortfolio,
+}: StudentCardProps) {
+  const popularity = maxPortfolioViews > 0
+    ? Math.max(8, Math.round((portfolioViews / maxPortfolioViews) * 100))
+    : 8;
+
   return (
     <article className="flex h-full flex-col border-[3px] border-[var(--color-brand)] bg-[var(--color-surface)]">
       <div className="relative h-56 w-full border-b-[3px] border-[var(--color-brand)]">
@@ -32,10 +57,37 @@ export function StudentCard({ student }: StudentCardProps) {
           {student.major}
         </p>
 
+        <div className="mt-3 border-2 border-[var(--color-border-strong)] bg-[var(--color-bg)] px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-brand)]">
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-4 w-4 fill-current"
+              >
+                <path d="M12 5c-6.8 0-10.8 6-11 6.3a1 1 0 0 0 0 1.4C1.2 13 5.2 19 12 19s10.8-6 11-6.3a1 1 0 0 0 0-1.4C22.8 11 18.8 5 12 5Zm0 12c-4.9 0-8.2-3.9-9-5 0.8-1.1 4.1-5 9-5s8.2 3.9 9 5c-0.8 1.1-4.1 5-9 5Z" />
+                <path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+              </svg>
+              {portfolioViews} {portfolioViews === 1 ? "view" : "views"}
+            </p>
+            <span className="inline-flex border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.11em] text-[var(--color-accent)]">
+              {getPortfolioTrend(portfolioViews)}
+            </span>
+          </div>
+
+          <div className="mt-2 h-2 w-full border border-[var(--color-border-strong)] bg-[var(--color-surface)]">
+            <div
+              className="h-full bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-accent)] transition-all duration-500"
+              style={{ width: `${popularity}%` }}
+            />
+          </div>
+        </div>
+
         <p className="mt-3 text-[13px] leading-5 text-[var(--color-text-muted)]">{student.summary}</p>
 
         <button
           type="button"
+          onClick={() => onViewPortfolio(student.id)}
           className="mt-6 w-full bg-[var(--color-brand)] px-4 py-3 font-heading text-lg font-semibold uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-accent)]"
         >
           View portfolio

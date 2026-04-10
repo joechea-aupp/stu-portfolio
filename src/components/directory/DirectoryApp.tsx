@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useSyncExternalStore, useState } from "react";
 import { students } from "@/data/students";
 import type { FilterState, Student, ThemeName } from "@/types/student";
 import { TopNav } from "@/components/layout/TopNav";
@@ -17,9 +17,35 @@ const initialFilters: FilterState = {
   availableOnly: false,
 };
 
-const PAGE_SIZE = 2;
+const PAGE_SIZE = 5;
+const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
 
 const defaultTheme: ThemeName = "classic";
+
+function subscribePortfolioViews(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("portfolio-views-updated", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("portfolio-views-updated", onStoreChange);
+  };
+}
+
+function getPortfolioViewsSnapshot() {
+  if (typeof window === "undefined") {
+    return "{}";
+  }
+
+  return window.localStorage.getItem(PORTFOLIO_VIEWS_STORAGE_KEY) ?? "{}";
+}
+
+function getPortfolioViewsServerSnapshot() {
+  return "{}";
+}
 
 function matchesQuery(student: Student, query: string) {
   if (!query.trim()) {
@@ -47,6 +73,30 @@ export function DirectoryApp() {
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const portfolioViewsSnapshot = useSyncExternalStore(
+    subscribePortfolioViews,
+    getPortfolioViewsSnapshot,
+    getPortfolioViewsServerSnapshot,
+  );
+
+  const portfolioViews = useMemo<Record<string, number>>(() => {
+    try {
+      const parsed = JSON.parse(portfolioViewsSnapshot);
+      if (!parsed || typeof parsed !== "object") {
+        return {};
+      }
+
+      const normalized: Record<string, number> = {};
+      for (const [studentId, count] of Object.entries(parsed)) {
+        if (typeof count === "number" && Number.isFinite(count) && count >= 0) {
+          normalized[studentId] = count;
+        }
+      }
+      return normalized;
+    } catch {
+      return {};
+    }
+  }, [portfolioViewsSnapshot]);
 
   const updateFilters = (updater: (current: FilterState) => FilterState) => {
     setFilters(updater);
@@ -73,6 +123,23 @@ export function DirectoryApp() {
     });
   }, [filters]);
 
+  const totalPortfolioViews = useMemo(() => {
+    return students.reduce((total, student) => total + (portfolioViews[student.id] ?? 0), 0);
+  }, [portfolioViews]);
+
+  const maxPortfolioViews = useMemo(() => {
+    return students.reduce((max, student) => Math.max(max, portfolioViews[student.id] ?? 0), 0);
+  }, [portfolioViews]);
+
+  const topViewedStudent = useMemo(() => {
+    return students.reduce<Student | null>((top, student) => {
+      if (!top) {
+        return student;
+      }
+      return (portfolioViews[student.id] ?? 0) > (portfolioViews[top.id] ?? 0) ? student : top;
+    }, null);
+  }, [portfolioViews]);
+
   const pageCount = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
   const paginatedStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -87,6 +154,16 @@ export function DirectoryApp() {
       ...current,
       majors: toggleListValue(current.majors, major),
     }));
+  };
+
+  const handleViewPortfolio = (studentId: string) => {
+    const nextViews = {
+      ...portfolioViews,
+      [studentId]: (portfolioViews[studentId] ?? 0) + 1,
+    };
+
+    window.localStorage.setItem(PORTFOLIO_VIEWS_STORAGE_KEY, JSON.stringify(nextViews));
+    window.dispatchEvent(new Event("portfolio-views-updated"));
   };
 
   return (
@@ -127,8 +204,32 @@ export function DirectoryApp() {
             Showing {filteredStudents.length} student{filteredStudents.length === 1 ? "" : "s"}
           </div>
 
+          <section className="mt-4 border-[3px] border-[var(--color-brand)] bg-gradient-to-r from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Total views</p>
+                <p className="mt-1 font-heading text-3xl uppercase leading-none text-[var(--color-brand)]">{totalPortfolioViews}</p>
+              </div>
+              <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Top portfolio</p>
+                <p className="mt-1 truncate font-heading text-xl uppercase leading-none text-[var(--color-brand)]">
+                  {topViewedStudent ? topViewedStudent.name : "None yet"}
+                </p>
+              </div>
+              <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Leading count</p>
+                <p className="mt-1 font-heading text-3xl uppercase leading-none text-[var(--color-accent)]">{maxPortfolioViews}</p>
+              </div>
+            </div>
+          </section>
+
           {filteredStudents.length > 0 ? (
-            <StudentGrid students={paginatedStudents} />
+            <StudentGrid
+              students={paginatedStudents}
+              portfolioViews={portfolioViews}
+              maxPortfolioViews={maxPortfolioViews}
+              onViewPortfolio={handleViewPortfolio}
+            />
           ) : (
             <div className="mt-8 border-[3px] border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-8 text-center">
               <p className="font-heading text-4xl uppercase text-[var(--color-brand)]">No students found</p>
