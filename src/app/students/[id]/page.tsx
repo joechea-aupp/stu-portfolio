@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { students } from "@/data/students";
+import { PortfolioStats } from "@/components/cards/PortfolioStats";
 
 export function generateStaticParams() {
   return students.map((student) => ({ id: student.id }));
@@ -50,6 +51,8 @@ export default async function StudentPortfolioPage({
                 {student.name}
               </h1>
 
+              <PortfolioStats studentId={student.id} />
+
               <div className="mt-5 grid grid-cols-2 gap-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand)]">
                 <div className="border border-[var(--color-border-strong)] bg-[var(--color-bg)] px-3 py-2">
                   <p className="text-[10px] text-[var(--color-text-muted)]">Year</p>
@@ -79,8 +82,7 @@ export default async function StudentPortfolioPage({
                         <p className="pt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-accent)]">
                           {project.period}
                         </p>
-                        <div className="relative border-l-2 border-[var(--color-border-strong)] pl-4">
-                          <span className="absolute top-1.5 -left-[6px] h-2.5 w-2.5 rounded-full bg-[var(--color-brand)]" aria-hidden="true" />
+                        <div>
                           <p className="text-sm font-semibold text-[var(--color-text)]">{project.title}</p>
                           {project.details ? (
                             <p className="mt-1 text-xs leading-6 text-[var(--color-text-muted)]">{project.details}</p>
