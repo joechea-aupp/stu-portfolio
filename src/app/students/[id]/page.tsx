@@ -103,8 +103,7 @@ export default async function StudentPortfolioPage({
                         <p className="pt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#EFBF04]">
                           {achievement.period}
                         </p>
-                        <div className="relative border-l-2 border-[#EFBF04] pl-4">
-                          <span className="absolute top-1.5 -left-[5px] h-2.5 w-2.5 rotate-45 bg-[#EFBF04]" aria-hidden="true" />
+                        <div>
                           <p className="text-sm font-semibold text-[var(--color-text)]">{achievement.title}</p>
                           {achievement.details ? (
                             <p className="mt-1 text-xs leading-6 text-[var(--color-text-muted)]">{achievement.details}</p>
