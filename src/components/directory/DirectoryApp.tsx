@@ -19,6 +19,7 @@ const initialFilters: FilterState = {
 
 const PAGE_SIZE = 5;
 const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
+const KUDOS_STORAGE_KEY = "portfolio-kudos";
 
 const defaultTheme: ThemeName = "classic";
 
@@ -35,6 +36,19 @@ function subscribePortfolioViews(onStoreChange: () => void) {
   };
 }
 
+function subscribeKudos(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("portfolio-kudos-updated", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("portfolio-kudos-updated", onStoreChange);
+  };
+}
+
 function getPortfolioViewsSnapshot() {
   if (typeof window === "undefined") {
     return "{}";
@@ -45,6 +59,37 @@ function getPortfolioViewsSnapshot() {
 
 function getPortfolioViewsServerSnapshot() {
   return "{}";
+}
+
+function getKudosSnapshot() {
+  if (typeof window === "undefined") {
+    return "{}";
+  }
+
+  return window.localStorage.getItem(KUDOS_STORAGE_KEY) ?? "{}";
+}
+
+function getKudosServerSnapshot() {
+  return "{}";
+}
+
+function normalizeCountRecord(snapshot: string): Record<string, number> {
+  try {
+    const parsed = JSON.parse(snapshot);
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+
+    const normalized: Record<string, number> = {};
+    for (const [studentId, count] of Object.entries(parsed)) {
+      if (typeof count === "number" && Number.isFinite(count) && count >= 0) {
+        normalized[studentId] = count;
+      }
+    }
+    return normalized;
+  } catch {
+    return {};
+  }
 }
 
 function matchesQuery(student: Student, query: string) {
@@ -78,25 +123,19 @@ export function DirectoryApp() {
     getPortfolioViewsSnapshot,
     getPortfolioViewsServerSnapshot,
   );
+  const kudosSnapshot = useSyncExternalStore(
+    subscribeKudos,
+    getKudosSnapshot,
+    getKudosServerSnapshot,
+  );
 
   const portfolioViews = useMemo<Record<string, number>>(() => {
-    try {
-      const parsed = JSON.parse(portfolioViewsSnapshot);
-      if (!parsed || typeof parsed !== "object") {
-        return {};
-      }
-
-      const normalized: Record<string, number> = {};
-      for (const [studentId, count] of Object.entries(parsed)) {
-        if (typeof count === "number" && Number.isFinite(count) && count >= 0) {
-          normalized[studentId] = count;
-        }
-      }
-      return normalized;
-    } catch {
-      return {};
-    }
+    return normalizeCountRecord(portfolioViewsSnapshot);
   }, [portfolioViewsSnapshot]);
+
+  const kudos = useMemo<Record<string, number>>(() => {
+    return normalizeCountRecord(kudosSnapshot);
+  }, [kudosSnapshot]);
 
   const updateFilters = (updater: (current: FilterState) => FilterState) => {
     setFilters(updater);
@@ -127,9 +166,17 @@ export function DirectoryApp() {
     return students.reduce((total, student) => total + (portfolioViews[student.id] ?? 0), 0);
   }, [portfolioViews]);
 
+  const totalKudos = useMemo(() => {
+    return students.reduce((total, student) => total + (kudos[student.id] ?? 0), 0);
+  }, [kudos]);
+
   const maxPortfolioViews = useMemo(() => {
     return students.reduce((max, student) => Math.max(max, portfolioViews[student.id] ?? 0), 0);
   }, [portfolioViews]);
+
+  const maxKudos = useMemo(() => {
+    return students.reduce((max, student) => Math.max(max, kudos[student.id] ?? 0), 0);
+  }, [kudos]);
 
   const topViewedStudent = useMemo(() => {
     return students.reduce<Student | null>((top, student) => {
@@ -139,6 +186,15 @@ export function DirectoryApp() {
       return (portfolioViews[student.id] ?? 0) > (portfolioViews[top.id] ?? 0) ? student : top;
     }, null);
   }, [portfolioViews]);
+
+  const topKudoedStudent = useMemo(() => {
+    return students.reduce<Student | null>((top, student) => {
+      if (!top) {
+        return student;
+      }
+      return (kudos[student.id] ?? 0) > (kudos[top.id] ?? 0) ? student : top;
+    }, null);
+  }, [kudos]);
 
   const pageCount = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
   const paginatedStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -164,6 +220,16 @@ export function DirectoryApp() {
 
     window.localStorage.setItem(PORTFOLIO_VIEWS_STORAGE_KEY, JSON.stringify(nextViews));
     window.dispatchEvent(new Event("portfolio-views-updated"));
+  };
+
+  const handleGiveKudo = (studentId: string) => {
+    const nextKudos = {
+      ...kudos,
+      [studentId]: (kudos[studentId] ?? 0) + 1,
+    };
+
+    window.localStorage.setItem(KUDOS_STORAGE_KEY, JSON.stringify(nextKudos));
+    window.dispatchEvent(new Event("portfolio-kudos-updated"));
   };
 
   return (
@@ -207,18 +273,21 @@ export function DirectoryApp() {
           <section className="mt-4 border-[3px] border-[var(--color-brand)] bg-gradient-to-r from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] p-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Total views</p>
-                <p className="mt-1 font-heading text-3xl uppercase leading-none text-[var(--color-brand)]">{totalPortfolioViews}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Total kudos</p>
+                <p className="mt-1 font-heading text-3xl uppercase leading-none text-[var(--color-brand)]">{totalKudos}</p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-muted)]">Portfolio views: {totalPortfolioViews}</p>
               </div>
               <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Top portfolio</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Most prestige</p>
                 <p className="mt-1 truncate font-heading text-xl uppercase leading-none text-[var(--color-brand)]">
-                  {topViewedStudent ? topViewedStudent.name : "None yet"}
+                  {topKudoedStudent ? topKudoedStudent.name : "None yet"}
                 </p>
+                <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-muted)]">Top views: {topViewedStudent ? topViewedStudent.name : "None yet"}</p>
               </div>
               <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Leading count</p>
-                <p className="mt-1 font-heading text-3xl uppercase leading-none text-[var(--color-accent)]">{maxPortfolioViews}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Leading kudos</p>
+                <p className="mt-1 font-heading text-3xl uppercase leading-none text-[var(--color-accent)]">{maxKudos}</p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--color-text-muted)]">Leading views: {maxPortfolioViews}</p>
               </div>
             </div>
           </section>
@@ -228,7 +297,10 @@ export function DirectoryApp() {
               students={paginatedStudents}
               portfolioViews={portfolioViews}
               maxPortfolioViews={maxPortfolioViews}
+              kudos={kudos}
+              maxKudos={maxKudos}
               onViewPortfolio={handleViewPortfolio}
+              onGiveKudo={handleGiveKudo}
             />
           ) : (
             <div className="mt-8 border-[3px] border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-8 text-center">

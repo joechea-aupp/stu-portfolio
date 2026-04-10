@@ -5,14 +5,20 @@ interface StudentGridProps {
   students: Student[];
   portfolioViews: Record<string, number>;
   maxPortfolioViews: number;
+  kudos: Record<string, number>;
+  maxKudos: number;
   onViewPortfolio: (studentId: string) => void;
+  onGiveKudo: (studentId: string) => void;
 }
 
 export function StudentGrid({
   students,
   portfolioViews,
   maxPortfolioViews,
+  kudos,
+  maxKudos,
   onViewPortfolio,
+  onGiveKudo,
 }: StudentGridProps) {
   return (
     <section className="pt-8 pb-12">
@@ -23,7 +29,10 @@ export function StudentGrid({
             student={student}
             portfolioViews={portfolioViews[student.id] ?? 0}
             maxPortfolioViews={maxPortfolioViews}
+            kudoCount={kudos[student.id] ?? 0}
+            maxKudos={maxKudos}
             onViewPortfolio={onViewPortfolio}
+            onGiveKudo={onGiveKudo}
           />
         ))}
       </div>
