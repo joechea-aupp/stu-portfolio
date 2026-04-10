@@ -1,5 +1,6 @@
 import type { FilterState } from "@/types/student";
 import { FilterPanel } from "@/components/filters/FilterPanel";
+import { SubmitPortfolioCard } from "@/components/cards/SubmitPortfolioCard";
 
 interface MobileFilterDrawerProps {
   isOpen: boolean;
@@ -37,6 +38,9 @@ export function MobileFilterDrawer({ isOpen, onClose, ...panelProps }: MobileFil
           </button>
         </div>
 
+        <div className="mb-6">
+          <SubmitPortfolioCard />
+        </div>
         <FilterPanel {...panelProps} />
       </div>
     </div>
