@@ -30,6 +30,7 @@ export function StudentCard({
       : verifiedAchievements === 5
         ? "border-[#97a4b5] bg-[#f2f5f8] text-[#556476]"
         : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-brand)]";
+  const achievementStarClass = verifiedAchievements > 5 ? "achievement-star-blink" : "";
 
   return (
     <article className={`${featuredCardClass} group flex h-full flex-col overflow-hidden border-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] transition-transform duration-200 hover:-translate-y-1`}>
@@ -71,7 +72,7 @@ export function StudentCard({
             {portfolioViews}
           </span>
           <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 ${achievementBadgeClass}`}>
-            <span aria-hidden="true">★</span>
+            <span aria-hidden="true" className={achievementStarClass}>★</span>
             {verifiedAchievements}
           </span>
         </div>
