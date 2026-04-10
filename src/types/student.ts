@@ -16,7 +16,6 @@ export interface Student {
 
 export interface FilterState {
   query: string;
-  years: AcademicYear[];
   majors: string[];
   availableOnly: boolean;
 }

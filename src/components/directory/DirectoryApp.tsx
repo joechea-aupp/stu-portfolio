@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { students } from "@/data/students";
-import type { AcademicYear, FilterState, Student, ThemeName } from "@/types/student";
+import type { FilterState, Student, ThemeName } from "@/types/student";
 import { TopNav } from "@/components/layout/TopNav";
 import { FilterSidebar } from "@/components/filters/FilterSidebar";
 import { DirectoryHero } from "@/components/hero/DirectoryHero";
@@ -13,7 +13,6 @@ import { MobileFilterDrawer } from "@/components/filters/MobileFilterDrawer";
 
 const initialFilters: FilterState = {
   query: "",
-  years: [],
   majors: [],
   availableOnly: false,
 };
@@ -53,14 +52,12 @@ export function DirectoryApp() {
 
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
-      const matchesYear = filters.years.length === 0 || filters.years.includes(student.year);
       const matchesMajor =
         filters.majors.length === 0 || filters.majors.some((major) => student.major === major);
       const matchesAvailability = !filters.availableOnly || student.available;
       const matchesSearchTerm = matchesQuery(student, filters.query);
 
       return (
-        matchesYear &&
         matchesMajor &&
         matchesAvailability &&
         matchesSearchTerm
@@ -72,13 +69,6 @@ export function DirectoryApp() {
     return currentValues.includes(value)
       ? currentValues.filter((item) => item !== value)
       : [...currentValues, value];
-  };
-
-  const toggleYear = (year: AcademicYear) => {
-    setFilters((current) => ({
-      ...current,
-      years: toggleListValue(current.years, year),
-    }));
   };
 
   const toggleMajor = (major: string) => {
@@ -95,7 +85,6 @@ export function DirectoryApp() {
       <div className="mx-auto flex w-full max-w-[1280px] flex-1 border-x border-[var(--color-border)]">
         <FilterSidebar
           filters={filters}
-          onToggleYear={toggleYear}
           onToggleMajor={toggleMajor}
           onAvailabilityChange={(availableOnly) =>
             setFilters((current) => ({ ...current, availableOnly }))
@@ -146,7 +135,6 @@ export function DirectoryApp() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         filters={filters}
-        onToggleYear={toggleYear}
         onToggleMajor={toggleMajor}
         onAvailabilityChange={(availableOnly) =>
           setFilters((current) => ({ ...current, availableOnly }))

@@ -1,9 +1,8 @@
-import { majorOptions, yearOptions } from "@/data/students";
-import type { AcademicYear, FilterState } from "@/types/student";
+import { majorOptions } from "@/data/students";
+import type { FilterState } from "@/types/student";
 
 interface FilterPanelProps {
   filters: FilterState;
-  onToggleYear: (year: AcademicYear) => void;
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;
@@ -16,30 +15,12 @@ const itemLabelClass =
 
 export function FilterPanel({
   filters,
-  onToggleYear,
   onToggleMajor,
   onAvailabilityChange,
   onReset,
 }: FilterPanelProps) {
   return (
     <div className="space-y-6">
-      <section>
-        <h3 className={sectionLabelClass}>Academic Year</h3>
-        <div className="space-y-2">
-          {yearOptions.map((option) => (
-            <label key={option.value} className={itemLabelClass}>
-              <input
-                type="checkbox"
-                checked={filters.years.includes(option.value)}
-                onChange={() => onToggleYear(option.value)}
-                className="h-4 w-4 rounded-none border border-[var(--color-border-strong)] accent-[var(--color-accent)]"
-              />
-              {option.label}
-            </label>
-          ))}
-        </div>
-      </section>
-
       <section>
         <h3 className={sectionLabelClass}>Major</h3>
         <div className="space-y-2 max-h-44 overflow-auto pr-1">

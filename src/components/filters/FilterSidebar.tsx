@@ -1,9 +1,8 @@
-import type { AcademicYear, FilterState } from "@/types/student";
+import type { FilterState } from "@/types/student";
 import { FilterPanel } from "@/components/filters/FilterPanel";
 
 interface FilterSidebarProps {
   filters: FilterState;
-  onToggleYear: (year: AcademicYear) => void;
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;
