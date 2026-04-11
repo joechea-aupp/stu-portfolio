@@ -149,6 +149,7 @@ export function TopNav() {
               <Link
                 key={item.label}
                 href={item.href}
+                prefetch={false}
                 className={`border-b-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
                   isActive
                     ? "border-[var(--color-accent)] text-[var(--color-text)]"
@@ -163,9 +164,7 @@ export function TopNav() {
 
         <div className="ml-auto flex items-center gap-3">
           {authLoading ? (
-            <span className="hidden text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)] sm:block">
-              Checking session
-            </span>
+            <div className="h-9 w-28 animate-pulse bg-[var(--color-border)]" aria-hidden="true" />
           ) : currentUser ? (
             <div className="relative" ref={accountMenuRef}>
               <button

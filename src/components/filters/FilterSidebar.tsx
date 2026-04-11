@@ -8,6 +8,7 @@ interface FilterSidebarProps {
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;
+  isLoading?: boolean;
 }
 
 export function FilterSidebar(props: FilterSidebarProps) {

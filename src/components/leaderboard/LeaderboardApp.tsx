@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import type { Student } from "@/types/student";
 
 const LEADERBOARD_LIMIT = 10;
+const MIN_LOADING_MS = 250;
 
 type LeaderboardMetric = "verified" | "views" | "kudos";
 
@@ -73,11 +75,19 @@ function metricButtonClass(currentMetric: LeaderboardMetric, metric: Leaderboard
 }
 
 export function LeaderboardApp() {
+  const pathname = usePathname();
   const [metric, setMetric] = useState<LeaderboardMetric>("verified");
   const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (pathname !== "/leaderboard") {
+      return;
+    }
+
     const controller = new AbortController();
+    const startedAt = Date.now();
+    setLoading(true);
 
     void (async () => {
       try {
@@ -101,13 +111,26 @@ export function LeaderboardApp() {
         setStudents(nextStudents);
       } catch {
         // Keep current UI when request fails.
+      } finally {
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(0, MIN_LOADING_MS - elapsed);
+
+        if (remaining > 0) {
+          await new Promise((resolve) => {
+            setTimeout(resolve, remaining);
+          });
+        }
+
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     })();
 
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [pathname]);
 
   const entries = useMemo<LeaderboardRow[]>(() => {
     return students.map((student) => ({
@@ -174,39 +197,51 @@ export function LeaderboardApp() {
 
       <section className="mt-4 border-[3px] border-[var(--color-brand)] bg-gradient-to-r from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Top verified achievement
-            </p>
-            <p className="mt-1 truncate font-heading text-[30px] uppercase leading-[0.95] text-[var(--color-brand)] sm:text-[38px]">
-              {topVerifiedRow ? topVerifiedRow.student.name : "None yet"}
-            </p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-              Verified: {topVerifiedRow ? topVerifiedRow.verifiedAchievements : 0}
-            </p>
-          </div>
-          <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Top kudo
-            </p>
-            <p className="mt-1 truncate font-heading text-[30px] uppercase leading-[0.95] text-[var(--color-brand)] sm:text-[38px]">
-              {topKudoRow ? topKudoRow.student.name : "None yet"}
-            </p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-              Kudos: {topKudoRow ? topKudoRow.kudos : 0}
-            </p>
-          </div>
-          <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Top view
-            </p>
-            <p className="mt-1 truncate font-heading text-[30px] uppercase leading-[0.95] text-[var(--color-brand)] sm:text-[38px]">
-              {topViewedRow ? topViewedRow.student.name : "None yet"}
-            </p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-              Views: {topViewedRow ? topViewedRow.views : 0}
-            </p>
-          </div>
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="animate-pulse border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
+                <div className="h-3 w-2/5 rounded bg-[var(--color-border)]" />
+                <div className="mt-2 h-8 w-4/5 rounded bg-[var(--color-border)]" />
+                <div className="mt-2 h-3 w-1/3 rounded bg-[var(--color-border)]" />
+              </div>
+            ))
+          ) : (
+            <>
+              <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                  Top verified achievement
+                </p>
+                <p className="mt-1 truncate font-heading text-[30px] uppercase leading-[0.95] text-[var(--color-brand)] sm:text-[38px]">
+                  {topVerifiedRow ? topVerifiedRow.student.name : "None yet"}
+                </p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  Verified: {topVerifiedRow ? topVerifiedRow.verifiedAchievements : 0}
+                </p>
+              </div>
+              <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                  Top kudo
+                </p>
+                <p className="mt-1 truncate font-heading text-[30px] uppercase leading-[0.95] text-[var(--color-brand)] sm:text-[38px]">
+                  {topKudoRow ? topKudoRow.student.name : "None yet"}
+                </p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  Kudos: {topKudoRow ? topKudoRow.kudos : 0}
+                </p>
+              </div>
+              <div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                  Top view
+                </p>
+                <p className="mt-1 truncate font-heading text-[30px] uppercase leading-[0.95] text-[var(--color-brand)] sm:text-[38px]">
+                  {topViewedRow ? topViewedRow.student.name : "None yet"}
+                </p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  Views: {topViewedRow ? topViewedRow.views : 0}
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -224,7 +259,23 @@ export function LeaderboardApp() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, index) => {
+              {loading
+                ? Array.from({ length: LEADERBOARD_LIMIT }).map((_, index) => (
+                    <tr key={index} className="animate-pulse border-b border-[var(--color-border)] last:border-b-0">
+                      <td className="px-3 py-3 sm:px-4">
+                        <div className="h-4 w-8 rounded bg-[var(--color-border)]" />
+                      </td>
+                      <td className="px-3 py-3 sm:px-4">
+                        <div className="h-4 w-32 rounded bg-[var(--color-border)]" />
+                        <div className="mt-1.5 h-3 w-20 rounded bg-[var(--color-border)]" />
+                      </td>
+                      <td className="px-3 py-3 sm:px-4"><div className="h-4 w-6 rounded bg-[var(--color-border)]" /></td>
+                      <td className="px-3 py-3 sm:px-4"><div className="h-4 w-8 rounded bg-[var(--color-border)]" /></td>
+                      <td className="px-3 py-3 sm:px-4"><div className="h-4 w-6 rounded bg-[var(--color-border)]" /></td>
+                      <td className="px-3 py-3 sm:px-4"><div className="h-7 w-14 rounded bg-[var(--color-border)]" /></td>
+                    </tr>
+                  ))
+                : rows.map((row, index) => {
                 const isTopRank = index === 0;
 
                 return (
