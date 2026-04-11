@@ -32,6 +32,7 @@ interface AdministrationUserManagerProps {
 }
 
 export function AdministrationUserManager({ className }: AdministrationUserManagerProps) {
+  const USERS_PER_PAGE = 8;
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,11 +40,25 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const sortedUsers = useMemo(
     () => users.slice().sort((a, b) => Number(new Date(b.createdAt)) - Number(new Date(a.createdAt))),
     [users],
   );
+
+  const pageCount = Math.max(1, Math.ceil(sortedUsers.length / USERS_PER_PAGE));
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (page - 1) * USERS_PER_PAGE;
+    return sortedUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
+  }, [page, sortedUsers, USERS_PER_PAGE]);
+
+  useEffect(() => {
+    if (page > pageCount) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -63,6 +78,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       }
 
       setUsers(payload.users ?? []);
+      setPage(1);
       setCurrentUserId(typeof payload.currentUserId === "number" ? payload.currentUserId : null);
     } catch {
       setFeedback("Unable to load users.");
@@ -189,143 +205,171 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       ) : sortedUsers.length === 0 ? (
         <p className="mt-4 text-sm text-[var(--color-text-muted)]">No users found.</p>
       ) : (
-        <div className="mt-4 overflow-x-auto border border-[var(--color-border)]">
-          <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
-            <thead className="bg-[var(--color-bg)]">
-              <tr>
-                <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">ID</th>
-                <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
-                <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
-                <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
-                <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
-                <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
-                <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
-                <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedUsers.map((user) => {
-                const isBusy = busyUserId === user.id;
-                const isEditing = editingUserId === user.id && editDraft;
+        <>
+          <div className="mt-4 overflow-x-auto border border-[var(--color-border)]">
+            <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
+              <thead className="bg-[var(--color-bg)]">
+                <tr>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">ID</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedUsers.map((user) => {
+                  const isBusy = busyUserId === user.id;
+                  const isEditing = editingUserId === user.id && editDraft;
 
-                return (
-                  <tr key={user.id} className="border-t border-[var(--color-border)] align-top">
-                    <td className="px-3 py-2 text-[var(--color-text-muted)]">{user.id}</td>
-                    <td className="px-3 py-2 text-[var(--color-text)]">{user.name}</td>
-                    <td className="px-3 py-2 text-[var(--color-text)]">{user.email}</td>
-                    <td className="px-3 py-2 text-[var(--color-text)]">{user.userType}</td>
-                    <td className="px-3 py-2 text-[var(--color-text)]">{user.isActive ? "Enabled" : "Disabled"}</td>
-                    <td className="px-3 py-2 text-[var(--color-text)]">{user.hasProfile ? "Complete" : "Missing"}</td>
-                    <td className="px-3 py-2 text-[var(--color-text-muted)]">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => startEdit(user)}
-                          className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isBusy || (user.isActive && user.id === currentUserId)}
-                          onClick={() =>
-                            void runAction({
-                              userId: user.id,
-                              action: user.isActive ? "disable" : "enable",
-                            })
-                          }
-                          className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
-                        >
-                          {user.isActive ? "Disable" : "Enable"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => void resetPassword(user.id)}
-                          className="border border-[var(--color-accent)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white disabled:opacity-50"
-                        >
-                          Reset password
-                        </button>
-                      </div>
-
-                      {isEditing ? (
-                        <div className="mt-3 grid grid-cols-1 gap-2 rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-3 sm:grid-cols-3">
-                          <input
-                            value={editDraft.name}
-                            onChange={(e) =>
-                              setEditDraft((current) =>
-                                current
-                                  ? {
-                                      ...current,
-                                      name: e.target.value,
-                                    }
-                                  : current,
-                              )
-                            }
-                            className="w-full border border-[var(--color-border)] bg-white px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-                            placeholder="Name"
-                          />
-                          <input
-                            value={editDraft.email}
-                            onChange={(e) =>
-                              setEditDraft((current) =>
-                                current
-                                  ? {
-                                      ...current,
-                                      email: e.target.value,
-                                    }
-                                  : current,
-                              )
-                            }
-                            className="w-full border border-[var(--color-border)] bg-white px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-                            placeholder="Email"
-                          />
-                          <select
-                            value={editDraft.userType}
-                            onChange={(e) =>
-                              setEditDraft((current) =>
-                                current
-                                  ? {
-                                      ...current,
-                                      userType: e.target.value as ManagedUserType,
-                                    }
-                                  : current,
-                              )
-                            }
-                            className="w-full border border-[var(--color-border)] bg-white px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                  return (
+                    <tr key={user.id} className="border-t border-[var(--color-border)] align-top">
+                      <td className="px-3 py-2 text-[var(--color-text-muted)]">{user.id}</td>
+                      <td className="px-3 py-2 text-[var(--color-text)]">{user.name}</td>
+                      <td className="px-3 py-2 text-[var(--color-text)]">{user.email}</td>
+                      <td className="px-3 py-2 text-[var(--color-text)]">{user.userType}</td>
+                      <td className="px-3 py-2 text-[var(--color-text)]">{user.isActive ? "Enabled" : "Disabled"}</td>
+                      <td className="px-3 py-2 text-[var(--color-text)]">{user.hasProfile ? "Complete" : "Missing"}</td>
+                      <td className="px-3 py-2 text-[var(--color-text-muted)]">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => startEdit(user)}
+                            className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
                           >
-                            <option value="STUDENT">STUDENT</option>
-                            <option value="ADMINISTRATION">ADMINISTRATION</option>
-                          </select>
-                          <div className="sm:col-span-3 flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => void submitEdit(user.id)}
-                              className="border border-[var(--color-accent)] bg-[var(--color-accent)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-white hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)]"
-                            >
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              onClick={cancelEdit}
-                              className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isBusy || (user.isActive && user.id === currentUserId)}
+                            onClick={() =>
+                              void runAction({
+                                userId: user.id,
+                                action: user.isActive ? "disable" : "enable",
+                              })
+                            }
+                            className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
+                          >
+                            {user.isActive ? "Disable" : "Enable"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void resetPassword(user.id)}
+                            className="border border-[var(--color-accent)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white disabled:opacity-50"
+                          >
+                            Reset password
+                          </button>
                         </div>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+
+                        {isEditing ? (
+                          <div className="mt-3 grid grid-cols-1 gap-2 rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-3 sm:grid-cols-3">
+                            <input
+                              value={editDraft.name}
+                              onChange={(e) =>
+                                setEditDraft((current) =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        name: e.target.value,
+                                      }
+                                    : current,
+                                )
+                              }
+                              className="w-full border border-[var(--color-border)] bg-white px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                              placeholder="Name"
+                            />
+                            <input
+                              value={editDraft.email}
+                              onChange={(e) =>
+                                setEditDraft((current) =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        email: e.target.value,
+                                      }
+                                    : current,
+                                )
+                              }
+                              className="w-full border border-[var(--color-border)] bg-white px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                              placeholder="Email"
+                            />
+                            <select
+                              value={editDraft.userType}
+                              onChange={(e) =>
+                                setEditDraft((current) =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        userType: e.target.value as ManagedUserType,
+                                      }
+                                    : current,
+                                )
+                              }
+                              className="w-full border border-[var(--color-border)] bg-white px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                            >
+                              <option value="STUDENT">STUDENT</option>
+                              <option value="ADMINISTRATION">ADMINISTRATION</option>
+                            </select>
+                            <div className="sm:col-span-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void submitEdit(user.id)}
+                                className="border border-[var(--color-accent)] bg-[var(--color-accent)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-white hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)]"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEdit}
+                                className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {pageCount > 1 ? (
+            <div className="mt-3 flex items-center justify-between border-t border-[var(--color-border)] pb-1 pt-4">
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page === 1}
+                className="border border-[var(--color-border-strong)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white disabled:pointer-events-none disabled:opacity-30"
+              >
+                ← Prev
+              </button>
+
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                Page {page} of {pageCount}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                disabled={page === pageCount}
+                className="border border-[var(--color-border-strong)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white disabled:pointer-events-none disabled:opacity-30"
+              >
+                Next →
+              </button>
+            </div>
+          ) : null}
+        </>
       )}
     </section>
   );
