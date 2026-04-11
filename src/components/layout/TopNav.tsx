@@ -1,22 +1,35 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import type { ThemeName } from "@/types/student";
-
-interface TopNavProps {
-  theme: ThemeName;
-  onThemeChange: (theme: ThemeName) => void;
-}
 
 const navItems = [
   { label: "Directory", href: "/" },
   { label: "Leaderboard", href: "/leaderboard" },
 ];
 
-export function TopNav({ theme, onThemeChange }: TopNavProps) {
+const defaultTheme: ThemeName = "classic";
+
+export function TopNav() {
   const pathname = usePathname();
+  const [theme, setTheme] = useState<ThemeName>(() => {
+    if (typeof window === "undefined") {
+      return defaultTheme;
+    }
+
+    const stored = window.localStorage.getItem("directory-theme");
+    return stored === "classic" || stored === "slate" || stored === "sunrise"
+      ? stored
+      : defaultTheme;
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("directory-theme", theme);
+  }, [theme]);
 
   return (
     <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -50,7 +63,7 @@ export function TopNav({ theme, onThemeChange }: TopNavProps) {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
-          <ThemeSwitcher theme={theme} onThemeChange={onThemeChange} />
+          <ThemeSwitcher theme={theme} onThemeChange={setTheme} />
           <button
             type="button"
             className="hidden h-9 items-center border border-[var(--color-border)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)] sm:flex"

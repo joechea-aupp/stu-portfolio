@@ -1,0 +1,62 @@
+services:
+  app:
+    image: node:20-bookworm-slim
+    container_name: stu-portfolio-app
+    restart: unless-stopped
+    working_dir: /app
+    command: >
+      sh -c "
+      if [ ! -d node_modules ] || [ -z \"$$(ls -A node_modules 2>/dev/null)\" ]; then npm ci; fi
+      && npx prisma generate
+      && npm run dev -- --webpack --hostname 0.0.0.0 --port 3000
+      "
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: 1
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - .:/app
+      - app-node-modules:/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - stu-network
+
+  db:
+    image: mysql:8.4
+    container_name: stu-portfolio-db
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stu-network
+
+volumes:
+  mysql-data:
+  app-node-modules:
+
+networks:
+  stu-network:
+    driver: bridge

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { students } from "@/data/students";
 import { PortfolioStats } from "@/components/cards/PortfolioStats";
-import { Footer } from "@/components/layout/Footer";
+import { PageLayout } from "@/components/layout/PageLayout";
 import type { SocialLinks } from "@/types/student";
 
 const SOCIAL_META: {
@@ -169,9 +169,7 @@ export default async function StudentPortfolioPage({
   };
 
   return (
-    <>
-      <main className="min-h-screen bg-[var(--color-bg)] px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-5xl">
+    <PageLayout width="lg">
         <Link
           href="/"
           className="inline-block border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white"
@@ -440,9 +438,6 @@ export default async function StudentPortfolioPage({
             </div>
           </div>
         </section>
-        </div>
-      </main>
-      <Footer />
-    </>
+    </PageLayout>
   );
 }

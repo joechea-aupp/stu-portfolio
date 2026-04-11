@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model users {
+  id       Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  student Student?
+}
+
+enum Classification {
+  FRESHMAN
+  SOPHOMORE
+  JUNIOR
+  SENIOR
+}
+
+model Student {
+  id Int @id @default(autoincrement())
+  user_id Int @unique
+  major String
+  graduation_year Int
+  classification Classification
+  available_for_project Boolean @default(false)
+  kudo_count Int @default(0)
+  view_count Int @default(0)
+  summary String? @db.Text
+  image_url String? @db.MediumText
+  skills Json
+  projects Json
+  achievements Json
+  // user create soley for typescript type safety and relation, authentication handled separately
+  user users @relation(fields: [user_id], references: [id])
+
+  @@map("students")
+}

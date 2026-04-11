@@ -1,15 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useSyncExternalStore, useState } from "react";
-import { Footer } from "@/components/layout/Footer";
-import { TopNav } from "@/components/layout/TopNav";
+import { useMemo, useSyncExternalStore, useState } from "react";
 import { students } from "@/data/students";
-import type { Student, ThemeName } from "@/types/student";
+import { PageLayout } from "@/components/layout/PageLayout";
+import type { Student } from "@/types/student";
 
 const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
 const KUDOS_STORAGE_KEY = "portfolio-kudos";
-const defaultTheme: ThemeName = "classic";
 const LEADERBOARD_LIMIT = 10;
 
 type LeaderboardMetric = "verified" | "views" | "kudos";
@@ -129,16 +127,6 @@ function metricButtonClass(currentMetric: LeaderboardMetric, metric: Leaderboard
 }
 
 export function LeaderboardApp() {
-  const [theme, setTheme] = useState<ThemeName>(() => {
-    if (typeof window === "undefined") {
-      return defaultTheme;
-    }
-
-    const stored = window.localStorage.getItem("directory-theme");
-    return stored === "classic" || stored === "slate" || stored === "sunrise"
-      ? stored
-      : defaultTheme;
-  });
   const [metric, setMetric] = useState<LeaderboardMetric>("verified");
 
   const portfolioViewsSnapshot = useSyncExternalStore(
@@ -159,11 +147,6 @@ export function LeaderboardApp() {
   const kudos = useMemo<Record<string, number>>(() => {
     return normalizeCountRecord(kudosSnapshot);
   }, [kudosSnapshot]);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem("directory-theme", theme);
-  }, [theme]);
 
   const entries = useMemo<LeaderboardRow[]>(() => {
     return students.map((student) => ({
@@ -191,10 +174,11 @@ export function LeaderboardApp() {
   }, [entries]);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
-      <TopNav theme={theme} onThemeChange={setTheme} />
-
-      <main className="mx-auto w-full max-w-[1280px] border-x border-[var(--color-border)] px-4 py-6 sm:px-6 lg:px-8">
+    <PageLayout
+      width="xl"
+      className="py-6 text-[var(--color-text)]"
+      containerClassName="border-x border-[var(--color-border)]"
+    >
         <section className="border-[3px] border-[var(--color-brand)] bg-gradient-to-r from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] p-4 sm:p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
             Student ranking board
@@ -326,9 +310,6 @@ export function LeaderboardApp() {
             </table>
           </div>
         </section>
-      </main>
-
-      <Footer />
-    </div>
+    </PageLayout>
   );
 }

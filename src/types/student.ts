@@ -12,6 +12,10 @@ export interface TimelineItem {
   title: string;
   details?: string;
   verifiedBy?: Verifier;
+  /** URL-safe identifier used to route to the item's detail page. */
+  slug?: string;
+  /** Full markdown content for the item's detail page. */
+  body?: string;
 }
 
 export interface SocialLinks {
