@@ -1,10 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
 const KUDOS_STORAGE_KEY = "portfolio-kudos";
+
+type StudentMetricsResponse = {
+  metrics?: {
+    views?: number;
+    kudos?: number;
+  };
+};
 
 function subscribe(onStoreChange: () => void) {
   window.addEventListener("storage", onStoreChange);
@@ -36,6 +43,21 @@ function useStorageCount(key: string, id: string): number {
   );
 }
 
+function writeStorageCount(key: string, studentId: string, value: number) {
+  try {
+    const raw = window.localStorage.getItem(key) ?? "{}";
+    const parsed = JSON.parse(raw);
+    const current = parsed && typeof parsed === "object" ? parsed : {};
+    const next = {
+      ...current,
+      [studentId]: value,
+    };
+    window.localStorage.setItem(key, JSON.stringify(next));
+  } catch {
+    // Ignore storage write failures.
+  }
+}
+
 export function PortfolioStats({
   studentId,
   extraBadge,
@@ -45,6 +67,44 @@ export function PortfolioStats({
 }) {
   const views = useStorageCount(PORTFOLIO_VIEWS_STORAGE_KEY, studentId);
   const kudos = useStorageCount(KUDOS_STORAGE_KEY, studentId);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/student-metrics?studentId=${encodeURIComponent(studentId)}`, {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as StudentMetricsResponse;
+        const dbViews = data.metrics?.views;
+        const dbKudos = data.metrics?.kudos;
+
+        if (typeof dbViews === "number" && Number.isFinite(dbViews) && dbViews >= 0) {
+          writeStorageCount(PORTFOLIO_VIEWS_STORAGE_KEY, studentId, dbViews);
+          window.dispatchEvent(new Event("portfolio-views-updated"));
+        }
+
+        if (typeof dbKudos === "number" && Number.isFinite(dbKudos) && dbKudos >= 0) {
+          writeStorageCount(KUDOS_STORAGE_KEY, studentId, dbKudos);
+          window.dispatchEvent(new Event("portfolio-kudos-updated"));
+        }
+      } catch {
+        // Keep current UI state when metrics fetch fails.
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [studentId]);
 
   return (
     <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--color-brand)]">

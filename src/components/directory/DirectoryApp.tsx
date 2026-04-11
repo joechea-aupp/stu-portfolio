@@ -20,6 +20,27 @@ const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
 const KUDOS_STORAGE_KEY = "portfolio-kudos";
 const DIRECTORY_STUDENTS_STORAGE_KEY = "directory-students";
 
+type StudentMetricsResponse = {
+  metrics?: {
+    views?: number;
+    kudos?: number;
+  };
+};
+
+function writeMetricToStorage(storageKey: string, studentId: string, value: number) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const current = normalizeCountRecord(window.localStorage.getItem(storageKey) ?? "{}");
+  const next = {
+    ...current,
+    [studentId]: value,
+  };
+
+  window.localStorage.setItem(storageKey, JSON.stringify(next));
+}
+
 function subscribeDirectoryStudents(onStoreChange: () => void) {
   if (typeof window === "undefined") {
     return () => {};
@@ -286,23 +307,79 @@ export function DirectoryApp() {
   };
 
   const handleViewPortfolio = (studentId: string) => {
-    const nextViews = {
-      ...portfolioViews,
-      [studentId]: (portfolioViews[studentId] ?? 0) + 1,
-    };
+    void (async () => {
+      try {
+        const response = await fetch("/api/student-metrics", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "view",
+            studentId,
+          }),
+        });
 
-    window.localStorage.setItem(PORTFOLIO_VIEWS_STORAGE_KEY, JSON.stringify(nextViews));
-    window.dispatchEvent(new Event("portfolio-views-updated"));
+        if (response.ok) {
+          const data = (await response.json()) as StudentMetricsResponse;
+          const dbViews = data.metrics?.views;
+
+          if (typeof dbViews === "number" && Number.isFinite(dbViews) && dbViews >= 0) {
+            writeMetricToStorage(PORTFOLIO_VIEWS_STORAGE_KEY, studentId, dbViews);
+            window.dispatchEvent(new Event("portfolio-views-updated"));
+            return;
+          }
+        }
+      } catch {
+        // Fall through to local optimistic update when request fails.
+      }
+
+      const nextViews = {
+        ...portfolioViews,
+        [studentId]: (portfolioViews[studentId] ?? 0) + 1,
+      };
+
+      window.localStorage.setItem(PORTFOLIO_VIEWS_STORAGE_KEY, JSON.stringify(nextViews));
+      window.dispatchEvent(new Event("portfolio-views-updated"));
+    })();
   };
 
   const handleGiveKudo = (studentId: string) => {
-    const nextKudos = {
-      ...kudos,
-      [studentId]: (kudos[studentId] ?? 0) + 1,
-    };
+    void (async () => {
+      try {
+        const response = await fetch("/api/student-metrics", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "kudo",
+            studentId,
+          }),
+        });
 
-    window.localStorage.setItem(KUDOS_STORAGE_KEY, JSON.stringify(nextKudos));
-    window.dispatchEvent(new Event("portfolio-kudos-updated"));
+        if (response.ok) {
+          const data = (await response.json()) as StudentMetricsResponse;
+          const dbKudos = data.metrics?.kudos;
+
+          if (typeof dbKudos === "number" && Number.isFinite(dbKudos) && dbKudos >= 0) {
+            writeMetricToStorage(KUDOS_STORAGE_KEY, studentId, dbKudos);
+            window.dispatchEvent(new Event("portfolio-kudos-updated"));
+            return;
+          }
+        }
+      } catch {
+        // Fall through to local optimistic update when request fails.
+      }
+
+      const nextKudos = {
+        ...kudos,
+        [studentId]: (kudos[studentId] ?? 0) + 1,
+      };
+
+      window.localStorage.setItem(KUDOS_STORAGE_KEY, JSON.stringify(nextKudos));
+      window.dispatchEvent(new Event("portfolio-kudos-updated"));
+    })();
   };
 
   return (
