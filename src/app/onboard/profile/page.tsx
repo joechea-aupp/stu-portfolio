@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AcademicYear, SocialLinks, TimelineItem } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { OnboardProfileSkeleton } from "@/components/onboard/OnboardProfileSkeleton";
 
 interface DraftProfile {
   name: string;
@@ -140,10 +141,11 @@ export default function OnboardProfilePage() {
           socialLinks: draft.socialLinks ?? {},
         });
       } catch {
+        if (controller.signal.aborted) return;
         setLoadError("Unable to load your profile draft.");
         setState(null);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     })();
 
@@ -171,7 +173,9 @@ export default function OnboardProfilePage() {
     }
   }, [pendingSocialLink, state]);
 
-  if (loading) return null;
+  if (loading) {
+    return <OnboardProfileSkeleton />;
+  }
 
   if (!state) {
     return (
