@@ -6,6 +6,7 @@ interface MobileFilterDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   filters: FilterState;
+  majorOptions: string[];
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;

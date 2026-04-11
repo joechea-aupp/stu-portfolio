@@ -4,6 +4,7 @@ import { SubmitPortfolioCard } from "@/components/cards/SubmitPortfolioCard";
 
 interface FilterSidebarProps {
   filters: FilterState;
+  majorOptions: string[];
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;

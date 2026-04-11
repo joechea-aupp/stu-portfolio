@@ -1,8 +1,8 @@
-import { majorOptions } from "@/data/students";
 import type { FilterState } from "@/types/student";
 
 interface FilterPanelProps {
   filters: FilterState;
+  majorOptions: string[];
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;
@@ -15,6 +15,7 @@ const itemLabelClass =
 
 export function FilterPanel({
   filters,
+  majorOptions,
   onToggleMajor,
   onAvailabilityChange,
   onReset,

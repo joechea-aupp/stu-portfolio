@@ -1,10 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { students } from "@/data/students";
 import { PortfolioStats } from "@/components/cards/PortfolioStats";
 import { PageLayout } from "@/components/layout/PageLayout";
-import type { SocialLinks } from "@/types/student";
+import { getPrismaClient } from "@/lib/prisma";
+import type { AcademicYear, SocialLinks, Student, TimelineItem } from "@/types/student";
 
 const SOCIAL_META: {
   key: keyof SocialLinks;
@@ -49,12 +49,112 @@ const SOCIAL_META: {
   },
 ];
 
-export function generateStaticParams() {
-  return students.map((student) => ({ id: student.id }));
-}
-
 const ACHIEVEMENTS_PER_PAGE = 5;
 const PROJECTS_PER_PAGE = 5;
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function asTimelineItems(value: unknown): TimelineItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const items: TimelineItem[] = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+
+    const candidate = item as Record<string, unknown>;
+    const period = typeof candidate.period === "string" ? candidate.period : "";
+    const title = typeof candidate.title === "string" ? candidate.title : "";
+
+    if (!period || !title) {
+      continue;
+    }
+
+    const timelineItem: TimelineItem = { period, title };
+    if (typeof candidate.details === "string") {
+      timelineItem.details = candidate.details;
+    }
+
+    const verifiedByValue = candidate.verifiedBy;
+    if (verifiedByValue && typeof verifiedByValue === "object") {
+      const name =
+        typeof (verifiedByValue as Record<string, unknown>).name === "string"
+          ? ((verifiedByValue as Record<string, unknown>).name as string)
+          : "";
+      const role =
+        typeof (verifiedByValue as Record<string, unknown>).role === "string"
+          ? ((verifiedByValue as Record<string, unknown>).role as string)
+          : "";
+
+      if (name && role) {
+        timelineItem.verifiedBy = { name, role };
+      }
+    }
+
+    items.push(timelineItem);
+  }
+
+  return items;
+}
+
+function toAcademicYear(value: string): AcademicYear {
+  return value.toLowerCase() as AcademicYear;
+}
+
+async function getDatabaseStudentById(id: string): Promise<Student | null> {
+  const numericId = Number.parseInt(id, 10);
+  if (!Number.isFinite(numericId)) {
+    return null;
+  }
+
+  try {
+    const prisma = getPrismaClient();
+    const dbStudent = await prisma.student.findUnique({
+      where: { id: numericId },
+      include: {
+        user: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!dbStudent) {
+      return null;
+    }
+
+    return {
+      id: String(dbStudent.id),
+      name: dbStudent.user.name,
+      year: toAcademicYear(dbStudent.classification),
+      major: dbStudent.major,
+      skills: asStringArray(dbStudent.skills),
+      available: dbStudent.available_for_project,
+      gpa: 0,
+      projects: asTimelineItems(dbStudent.projects),
+      achievements: asTimelineItems(dbStudent.achievements),
+      summary: dbStudent.summary ?? "",
+      imageUrl:
+        dbStudent.image_url && dbStudent.image_url.trim().length > 0
+          ? dbStudent.image_url
+          : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=640&q=80",
+      socialLinks: {},
+    };
+  } catch {
+    return null;
+  }
+}
 
 export default async function StudentPortfolioPage({
   params,
@@ -65,7 +165,7 @@ export default async function StudentPortfolioPage({
 }) {
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
-  const student = students.find((candidate) => candidate.id === id);
+  const student = await getDatabaseStudentById(id);
 
   if (!student) {
     notFound();
