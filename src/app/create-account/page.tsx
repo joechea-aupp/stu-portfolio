@@ -7,6 +7,7 @@ import { PageLayout } from "@/components/layout/PageLayout";
 
 export default function CreateAccountPage() {
   const router = useRouter();
+  const [userType, setUserType] = useState<"STUDENT" | "ADMINISTRATION">("STUDENT");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,11 +29,13 @@ export default function CreateAccountPage() {
           name,
           email,
           password,
+          userType,
         }),
       });
 
       const payload = (await response.json()) as {
         error?: string;
+        userType?: "STUDENT" | "ADMINISTRATION";
       };
 
       if (!response.ok) {
@@ -40,7 +43,8 @@ export default function CreateAccountPage() {
         return;
       }
 
-      router.push("/onboard");
+      const targetUserType = payload.userType ?? userType;
+      router.push(targetUserType === "ADMINISTRATION" ? "/onboard/administration" : "/onboard");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -72,6 +76,18 @@ export default function CreateAccountPage() {
               className="w-full border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
               placeholder="e.g. Sophea Chan"
             />
+          </Field>
+
+          <Field label="Account type" htmlFor="userType">
+            <select
+              id="userType"
+              value={userType}
+              onChange={(e) => setUserType(e.target.value as "STUDENT" | "ADMINISTRATION")}
+              className="w-full border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
+            >
+              <option value="STUDENT">Student</option>
+              <option value="ADMINISTRATION">Administration</option>
+            </select>
           </Field>
 
           <Field label="Email" htmlFor="email">

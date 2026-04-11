@@ -1,5 +1,9 @@
 export type AcademicYear = "freshman" | "sophomore" | "junior" | "senior";
 
+export type UserType = "STUDENT" | "ADMINISTRATION";
+
+export type AdministrationTitle = "MR" | "MS" | "DR";
+
 export type ThemeName = "classic" | "slate" | "sunrise";
 
 export interface Verifier {
@@ -39,6 +43,16 @@ export interface Student {
   summary: string;
   imageUrl: string;
   socialLinks?: SocialLinks;
+}
+
+export interface AdministrationProfile {
+  occupation: string;
+  company: string;
+  phoneNumber: string;
+  gender: string;
+  summary: string;
+  profilePicUrl: string;
+  title: AdministrationTitle;
 }
 
 export interface FilterState {

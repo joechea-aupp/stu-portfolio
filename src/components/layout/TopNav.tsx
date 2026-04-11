@@ -16,7 +16,11 @@ const defaultTheme: ThemeName = "classic";
 export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }) {
   const pathname = usePathname();
   const [authLoading, setAuthLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<{ id: number; name: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id: number;
+    name: string;
+    userType: "STUDENT" | "ADMINISTRATION";
+  } | null>(null);
   const [wasLoggedIn, setWasLoggedIn] = useState(initialKnownSession);
 
   useLayoutEffect(() => {
@@ -106,11 +110,16 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
           user?: {
             id?: number;
             name?: string;
+            userType?: "STUDENT" | "ADMINISTRATION";
           };
         };
 
         if (payload.user?.id && payload.user?.name) {
-          setCurrentUser({ id: payload.user.id, name: payload.user.name });
+          setCurrentUser({
+            id: payload.user.id,
+            name: payload.user.name,
+            userType: payload.user.userType === "ADMINISTRATION" ? "ADMINISTRATION" : "STUDENT",
+          });
           window.localStorage.setItem("session-known", "true");
         } else {
           setCurrentUser(null);
@@ -227,11 +236,11 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
                   </div>
 
                   <Link
-                    href="/onboard/profile"
+                    href={currentUser.userType === "ADMINISTRATION" ? "/onboard/administration" : "/onboard/profile"}
                     role="menuitem"
                     className="inline-flex h-9 items-center justify-center border border-[var(--color-border-strong)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                   >
-                    Edit portfolio
+                    Edit profile
                   </Link>
 
                   <ThemeSwitcher theme={theme} onThemeChange={setTheme} layout="stacked" />

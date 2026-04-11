@@ -27,6 +27,17 @@ export async function GET() {
       id: true,
       name: true,
       email: true,
+      user_type: true,
+      student: {
+        select: {
+          id: true,
+        },
+      },
+      administration: {
+        select: {
+          id: true,
+        },
+      },
     },
   });
 
@@ -34,10 +45,19 @@ export async function GET() {
     return unauthorizedResponse();
   }
 
+  const hasProfile =
+    user.user_type === "ADMINISTRATION" ? Boolean(user.administration) : Boolean(user.student);
+
   return Response.json(
     {
       authenticated: true,
-      user,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        userType: user.user_type,
+        hasProfile,
+      },
     },
     { headers: { "Cache-Control": "no-store" } },
   );
