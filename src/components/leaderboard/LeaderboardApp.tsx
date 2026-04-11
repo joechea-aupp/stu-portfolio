@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useSyncExternalStore, useState } from "react";
 import { students } from "@/data/students";
+import { PageLayout } from "@/components/layout/PageLayout";
 import type { Student } from "@/types/student";
 
 const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
@@ -173,8 +174,11 @@ export function LeaderboardApp() {
   }, [entries]);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
-      <main className="mx-auto w-full max-w-[1280px] border-x border-[var(--color-border)] px-4 py-6 sm:px-6 lg:px-8">
+    <PageLayout
+      width="xl"
+      className="py-6 text-[var(--color-text)]"
+      containerClassName="border-x border-[var(--color-border)]"
+    >
         <section className="border-[3px] border-[var(--color-brand)] bg-gradient-to-r from-[var(--color-surface)] via-[var(--color-bg)] to-[var(--color-surface)] p-4 sm:p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
             Student ranking board
@@ -306,7 +310,6 @@ export function LeaderboardApp() {
             </table>
           </div>
         </section>
-      </main>
-    </div>
+    </PageLayout>
   );
 }

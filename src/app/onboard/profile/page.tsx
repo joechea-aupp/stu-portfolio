@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AcademicYear, TimelineItem } from "@/types/student";
 import { DRAFT_KEY } from "@/app/onboard/draft";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 interface DraftProfile {
   name: string;
@@ -125,8 +126,7 @@ export default function OnboardProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] flex flex-col">
-      <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
+    <PageLayout width="md" className="py-10" containerClassName="max-w-2xl">
         <Link
           href="/onboard"
           className="inline-block border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
@@ -239,8 +239,7 @@ export default function OnboardProfilePage() {
             Save &amp; finish
           </button>
         </form>
-      </main>
-    </div>
+    </PageLayout>
   );
 }
 

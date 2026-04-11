@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { AcademicYear } from "@/types/student";
 import { DRAFT_KEY } from "@/app/onboard/draft";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
   { value: "freshman", label: "Freshman" },
@@ -62,9 +63,8 @@ export default function OnboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] flex flex-col">
-      <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-lg">
+    <PageLayout width="sm" centered>
+      <div className="w-full max-w-lg">
           {/* Card */}
           <div className="border-[3px] border-[var(--color-brand)] bg-[var(--color-surface)]">
             {/* Card header */}
@@ -216,9 +216,8 @@ export default function OnboardPage() {
               </button>
             </form>
           </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </PageLayout>
   );
 }
 

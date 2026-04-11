@@ -8,6 +8,7 @@ import { DirectoryHero } from "@/components/hero/DirectoryHero";
 import { DirectorySearch } from "@/components/search/DirectorySearch";
 import { StudentGrid } from "@/components/cards/StudentGrid";
 import { MobileFilterDrawer } from "@/components/filters/MobileFilterDrawer";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 const initialFilters: FilterState = {
   query: "",
@@ -180,8 +181,11 @@ export function DirectoryApp() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
-      <div className="mx-auto flex w-full max-w-[1280px] flex-1 border-x border-[var(--color-border)]">
+    <PageLayout
+      width="xl"
+      className="py-0 text-[var(--color-text)]"
+      containerClassName="flex border-x border-[var(--color-border)]"
+    >
         <FilterSidebar
           filters={filters}
           onToggleMajor={toggleMajor}
@@ -253,8 +257,8 @@ export function DirectoryApp() {
                 Next →
               </button>
             </div>
-          )}        </main>
-      </div>
+          )}
+        </main>
 
       <MobileFilterDrawer
         isOpen={isDrawerOpen}
@@ -266,6 +270,6 @@ export function DirectoryApp() {
         }
         onReset={() => { setFilters(initialFilters); setPage(1); }}
       />
-    </div>
+    </PageLayout>
   );
 }

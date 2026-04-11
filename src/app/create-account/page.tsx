@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 export default function CreateAccountPage() {
   const router = useRouter();
@@ -53,8 +54,8 @@ export default function CreateAccountPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-xl border-[3px] border-[var(--color-brand)] bg-[var(--color-surface)]">
+    <PageLayout width="sm" centered>
+      <div className="border-[3px] border-[var(--color-brand)] bg-[var(--color-surface)]">
         <div className="bg-[var(--color-brand)] px-8 py-6">
           <p className="text-[9px] uppercase tracking-[0.16em] text-white/70">StudentHub</p>
           <h1 className="mt-2 font-heading text-3xl uppercase leading-tight text-white">
@@ -125,7 +126,7 @@ export default function CreateAccountPage() {
           </p>
         </form>
       </div>
-    </div>
+    </PageLayout>
   );
 }
 
