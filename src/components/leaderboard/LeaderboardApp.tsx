@@ -123,7 +123,6 @@ function normalizeStudent(candidate: unknown): Student | null {
     typeof value.year !== "string" ||
     !Array.isArray(value.skills) ||
     typeof value.available !== "boolean" ||
-    typeof value.gpa !== "number" ||
     !Array.isArray(value.projects) ||
     !Array.isArray(value.achievements) ||
     typeof value.summary !== "string" ||

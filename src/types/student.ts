@@ -32,7 +32,6 @@ export interface Student {
   major: string;
   skills: string[];
   available: boolean;
-  gpa: number;
   projects: TimelineItem[];
   achievements: TimelineItem[];
   summary: string;

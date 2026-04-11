@@ -142,7 +142,6 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
       major: dbStudent.major,
       skills: asStringArray(dbStudent.skills),
       available: dbStudent.available_for_project,
-      gpa: 0,
       projects: asTimelineItems(dbStudent.projects),
       achievements: asTimelineItems(dbStudent.achievements),
       summary: dbStudent.summary ?? "",

@@ -84,7 +84,6 @@ export async function GET() {
       major: student.major,
       skills: asStringArray(student.skills),
       available: student.available_for_project,
-      gpa: 0,
       projects: asTimelineItems(student.projects),
       achievements: asTimelineItems(student.achievements),
       summary: student.summary ?? "",
