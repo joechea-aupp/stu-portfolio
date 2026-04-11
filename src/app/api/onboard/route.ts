@@ -46,10 +46,19 @@ export async function POST(request: Request) {
         projects: Array.isArray(projects) ? projects : [],
         achievements: Array.isArray(achievements) ? achievements : [],
       },
-      select: { id: true },
+      select: { id: true, kudo_count: true, view_count: true },
     });
 
-    return Response.json({ studentId: student.id }, { status: 201 });
+    return Response.json(
+      {
+        studentId: student.id,
+        metrics: {
+          kudos: student.kudo_count,
+          views: student.view_count,
+        },
+      },
+      { status: 201 },
+    );
   } catch (error) {
     if (
       error &&

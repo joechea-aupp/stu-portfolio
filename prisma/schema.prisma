@@ -28,6 +28,8 @@ model Student {
   major String
   graduation_year Int
   classification Classification
+  kudo_count Int @default(0)
+  view_count Int @default(0)
   summary String? @db.Text
   image_url String? @db.MediumText
   skills Json

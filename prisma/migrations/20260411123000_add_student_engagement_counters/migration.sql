@@ -1,0 +1,3 @@
+ALTER TABLE `students`
+  ADD COLUMN `kudo_count` INT NOT NULL DEFAULT 0,
+  ADD COLUMN `view_count` INT NOT NULL DEFAULT 0;
