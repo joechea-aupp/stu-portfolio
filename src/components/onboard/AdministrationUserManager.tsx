@@ -50,7 +50,6 @@ interface EditDraft {
   name: string;
   email: string;
   userType: ManagedUserType;
-  roleId: number | null;
 }
 
 interface PasswordResetDraft {
@@ -98,8 +97,6 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
   const canManageUsers = currentUserPermissions.includes("users.manage");
   const canCreateRoles = currentUserPermissions.includes("roles.create");
   const canUpdateRoles = currentUserPermissions.includes("roles.update");
-  const canAssignRoles = currentUserPermissions.includes("roles.assign");
-
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const sortedUsers = useMemo(
@@ -118,8 +115,6 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
         user.name,
         user.email,
         user.userType,
-        user.roles.map((role) => role.name).join(" "),
-        user.permissionKeys.join(" "),
         user.isActive ? "enabled" : "disabled",
       ]
         .join(" ")
@@ -377,7 +372,6 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
       name: user.name,
       email: user.email,
       userType: user.userType,
-      roleId: user.roles[0]?.id ?? null,
     });
   }
 
@@ -418,14 +412,6 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
 
     if (!updated) {
       return;
-    }
-
-    if (editDraft.userType === "ADMINISTRATION" && canAssignRoles) {
-      await runUserAction({
-        userId,
-        action: "assignRole",
-        roleId: editDraft.roleId,
-      });
     }
 
     cancelEdit();
@@ -594,7 +580,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-              placeholder="Search by id, name, email, type, role, or permission"
+              placeholder="Search by id, name, email, type, or status"
             />
           </label>
 
@@ -628,8 +614,6 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                     <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
                     <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
                     <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
-                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Assigned role</th>
-                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Permissions</th>
                     <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
                     <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
                     <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
@@ -639,7 +623,6 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                 <tbody>
                   {paginatedUsers.map((user) => {
                     const isBusy = busyUserId === user.id;
-                    const roleName = user.roles[0]?.name ?? "-";
 
                     return (
                       <tr key={user.id} className="border-t border-[var(--color-border)] align-top">
@@ -665,20 +648,6 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                           >
                             {user.userType}
                           </span>
-                        </td>
-                        <td className="px-3 py-2">
-                          <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-indigo-700">
-                            {roleName}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2">
-                          {user.permissionKeys.length > 0 ? (
-                            <span className="text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                              {user.permissionKeys.join(", ")}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">-</span>
-                          )}
                         </td>
                         <td className="px-3 py-2">
                           <span
@@ -789,7 +758,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
               <div>
                 <h3 className="font-heading text-base uppercase tracking-[0.08em] text-[var(--color-text)]">Edit user</h3>
                 <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Update name, email, type, and role assignment.
+                  Update name, email, and type.
                 </p>
               </div>
               <button
@@ -861,40 +830,6 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                   <option value="ADMINISTRATION">ADMINISTRATION</option>
                 </select>
               </label>
-
-              {editDraft.userType === "ADMINISTRATION" ? (
-                <label className="grid gap-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Assigned role</span>
-                  <select
-                    value={editDraft.roleId ?? ""}
-                    onChange={(e) =>
-                      setEditDraft((current) =>
-                        current
-                          ? {
-                              ...current,
-                              roleId: e.target.value ? Number(e.target.value) : null,
-                            }
-                          : current,
-                      )
-                    }
-                    disabled={!canAssignRoles}
-                    className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] disabled:opacity-60"
-                  >
-                    <option value="">No role assigned</option>
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.id}>
-                        {role.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-
-              {!canAssignRoles ? (
-                <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-                  Your account cannot assign roles.
-                </p>
-              ) : null}
             </div>
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -1114,8 +1049,6 @@ function UserTableSkeleton() {
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
-            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Assigned role</th>
-            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Permissions</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
@@ -1129,8 +1062,6 @@ function UserTableSkeleton() {
               <td className="px-3 py-3"><div className="h-3 w-28 animate-pulse bg-[var(--color-border)]" /></td>
               <td className="px-3 py-3"><div className="h-3 w-40 animate-pulse bg-[var(--color-border)]" /></td>
               <td className="px-3 py-3"><div className="h-3 w-24 animate-pulse bg-[var(--color-border)]" /></td>
-              <td className="px-3 py-3"><div className="h-3 w-28 animate-pulse bg-[var(--color-border)]" /></td>
-              <td className="px-3 py-3"><div className="h-3 w-40 animate-pulse bg-[var(--color-border)]" /></td>
               <td className="px-3 py-3"><div className="h-3 w-16 animate-pulse bg-[var(--color-border)]" /></td>
               <td className="px-3 py-3"><div className="h-3 w-20 animate-pulse bg-[var(--color-border)]" /></td>
               <td className="px-3 py-3"><div className="h-3 w-20 animate-pulse bg-[var(--color-border)]" /></td>
