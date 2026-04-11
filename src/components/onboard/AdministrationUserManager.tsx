@@ -87,6 +87,9 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
   const [roleDraftName, setRoleDraftName] = useState("");
   const [roleDraftDescription, setRoleDraftDescription] = useState("");
   const [updatingRoleId, setUpdatingRoleId] = useState<number | null>(null);
+  const [editingRoleId, setEditingRoleId] = useState<number | null>(null);
+  const [rolePermissionDraft, setRolePermissionDraft] = useState<number[]>([]);
+  const [savingRolePermissions, setSavingRolePermissions] = useState(false);
 
   const [feedback, setFeedback] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -127,6 +130,11 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
   }, [normalizedSearch, sortedUsers]);
 
   const pageCount = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+
+  const editingRole = useMemo(
+    () => roles.find((role) => role.id === editingRoleId) ?? null,
+    [editingRoleId, roles],
+  );
 
   const paginatedUsers = useMemo(() => {
     const startIndex = (page - 1) * USERS_PER_PAGE;
@@ -271,40 +279,90 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
     }
   }
 
-  async function toggleRolePermission(roleId: number, permissionId: number, isAttached: boolean) {
+  function startRoleEdit(role: RoleWithPermissions) {
+    setEditingRoleId(role.id);
+    setRolePermissionDraft(role.permissions.map((permission) => permission.id));
+  }
+
+  function cancelRoleEdit() {
+    if (savingRolePermissions) {
+      return;
+    }
+
+    setEditingRoleId(null);
+    setRolePermissionDraft([]);
+  }
+
+  function toggleRolePermissionDraft(permissionId: number) {
+    setRolePermissionDraft((current) =>
+      current.includes(permissionId)
+        ? current.filter((entry) => entry !== permissionId)
+        : [...current, permissionId],
+    );
+  }
+
+  async function saveRolePermissions() {
+    if (!editingRole) {
+      return;
+    }
+
     if (!canUpdateRoles) {
       setFeedback("You do not have permission to update role permissions.");
       return;
     }
 
-    setUpdatingRoleId(roleId);
+    const currentPermissions = new Set(editingRole.permissions.map((permission) => permission.id));
+    const draftedPermissions = new Set(rolePermissionDraft);
+
+    const toAttach = Array.from(draftedPermissions).filter((permissionId) => !currentPermissions.has(permissionId));
+    const toDetach = Array.from(currentPermissions).filter((permissionId) => !draftedPermissions.has(permissionId));
+
+    if (toAttach.length === 0 && toDetach.length === 0) {
+      setFeedback("No permission changes to save.");
+      cancelRoleEdit();
+      return;
+    }
+
+    setSavingRolePermissions(true);
+    setUpdatingRoleId(editingRole.id);
     setFeedback(null);
 
     try {
-      const response = await fetch("/api/administration/roles", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: isAttached ? "detachPermission" : "attachPermission",
-          roleId,
-          permissionId,
-        }),
-      });
-      const payload = (await response.json()) as ApiPayload;
+      const mutations = [
+        ...toAttach.map((permissionId) => ({ action: "attachPermission" as const, permissionId })),
+        ...toDetach.map((permissionId) => ({ action: "detachPermission" as const, permissionId })),
+      ];
 
-      if (!response.ok) {
-        setFeedback(payload.error ?? "Unable to update role permissions.");
-        return;
+      for (const mutation of mutations) {
+        const response = await fetch("/api/administration/roles", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: mutation.action,
+            roleId: editingRole.id,
+            permissionId: mutation.permissionId,
+          }),
+        });
+        const payload = (await response.json()) as ApiPayload;
+
+        if (!response.ok) {
+          setFeedback(payload.error ?? "Unable to update role permissions.");
+          return;
+        }
+
+        setRoles(payload.roles ?? []);
       }
 
-      setRoles(payload.roles ?? []);
       setFeedback("Role permissions updated.");
+      setEditingRoleId(null);
+      setRolePermissionDraft([]);
       void loadUsers();
     } catch {
       setFeedback("Unable to update role permissions.");
     } finally {
+      setSavingRolePermissions(false);
       setUpdatingRoleId(null);
     }
   }
@@ -471,51 +529,53 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
               </button>
             </div>
 
-            <div className="grid gap-3">
-              {roles.length === 0 ? (
-                <p className="text-sm text-[var(--color-text-muted)]">No roles found.</p>
-              ) : (
-                roles.map((role) => {
-                  const attached = new Set(role.permissions.map((permission) => permission.id));
+            {roles.length === 0 ? (
+              <p className="text-sm text-[var(--color-text-muted)]">No roles found.</p>
+            ) : (
+              <div className="overflow-x-auto border border-[var(--color-border)] bg-white">
+                <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+                  <thead className="bg-[var(--color-bg)]">
+                    <tr>
+                      <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
+                      <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Description</th>
+                      <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
+                      <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Permissions</th>
+                      <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {roles.map((role) => {
+                      const isUpdating = updatingRoleId === role.id;
 
-                  return (
-                    <div key={role.id} className="border border-[var(--color-border)] bg-white p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text)]">{role.name}</p>
-                          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{role.description || "No description."}</p>
-                        </div>
-                        <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-                          {role.isSystem ? "System role" : "Custom role"}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {permissions.map((permission) => {
-                          const isAttached = attached.has(permission.id);
-                          const isUpdating = updatingRoleId === role.id;
-
-                          return (
-                            <label key={permission.id} className="flex items-center gap-2 border border-[var(--color-border)] px-2.5 py-2">
-                              <input
-                                type="checkbox"
-                                checked={isAttached}
-                                onChange={() => void toggleRolePermission(role.id, permission.id, isAttached)}
-                                disabled={!canUpdateRoles || isUpdating}
-                                className="h-4 w-4"
-                              />
-                              <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                                {permission.key}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                      return (
+                        <tr key={role.id} className="border-t border-[var(--color-border)] align-top">
+                          <td className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text)]">
+                            {role.name}
+                          </td>
+                          <td className="px-3 py-2 text-[var(--color-text-muted)]">{role.description || "No description."}</td>
+                          <td className="px-3 py-2">
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                              {role.isSystem ? "System role" : "Custom role"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-[11px] text-[var(--color-text-muted)]">{role.permissions.length} attached</td>
+                          <td className="px-3 py-2">
+                            <button
+                              type="button"
+                              disabled={!canUpdateRoles || isUpdating || savingRolePermissions}
+                              onClick={() => startRoleEdit(role)}
+                              className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)] disabled:opacity-50"
+                            >
+                              {isUpdating ? "Saving..." : "Edit"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {!canCreateRoles || !canUpdateRoles ? (
               <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
@@ -853,6 +913,88 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                 className="border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)] disabled:opacity-40"
               >
                 {busyUserId === editingUserId ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "rbac" && editingRole ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              cancelRoleEdit();
+            }
+          }}
+          role="presentation"
+        >
+          <div className="w-full max-w-3xl border-[2px] border-[var(--color-border-strong)] bg-[var(--color-surface)] p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-heading text-base uppercase tracking-[0.08em] text-[var(--color-text)]">Edit role permissions</h3>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  {editingRole.name} {editingRole.isSystem ? "(System role)" : "(Custom role)"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cancelRoleEdit}
+                disabled={savingRolePermissions}
+                className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-40"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 max-h-[55vh] overflow-y-auto border border-[var(--color-border)] bg-white p-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {permissions.map((permission) => {
+                  const isAttached = rolePermissionDraft.includes(permission.id);
+
+                  return (
+                    <label key={permission.id} className="flex items-start gap-2 border border-[var(--color-border)] px-2.5 py-2">
+                      <input
+                        type="checkbox"
+                        checked={isAttached}
+                        onChange={() => toggleRolePermissionDraft(permission.id)}
+                        disabled={savingRolePermissions || !canUpdateRoles}
+                        className="mt-0.5 h-4 w-4"
+                      />
+                      <span className="grid gap-0.5">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                          {permission.key}
+                        </span>
+                        <span className="text-xs text-[var(--color-text-muted)]">{permission.description || permission.label}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {!canUpdateRoles ? (
+              <p className="mt-3 text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                Your account cannot update role permissions.
+              </p>
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelRoleEdit}
+                disabled={savingRolePermissions}
+                className="border border-[var(--color-border-strong)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveRolePermissions()}
+                disabled={savingRolePermissions || !canUpdateRoles}
+                className="border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)] disabled:opacity-40"
+              >
+                {savingRolePermissions ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
