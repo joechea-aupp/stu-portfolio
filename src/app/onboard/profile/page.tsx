@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { AcademicYear, TimelineItem } from "@/types/student";
+import type { AcademicYear, SocialLinks, TimelineItem } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
 
 interface DraftProfile {
@@ -18,9 +18,39 @@ interface DraftProfile {
   achievements: TimelineItem[];
   summary: string;
   skills: string[];
+  socialLinks?: SocialLinks;
 }
 
 const EMPTY_TIMELINE: TimelineItem = { period: "", title: "", details: "" };
+type SocialLinkKey = keyof SocialLinks;
+
+const SOCIAL_LINK_OPTIONS: Array<{
+  key: SocialLinkKey;
+  label: string;
+  placeholder: string;
+}> = [
+  {
+    key: "linkedin",
+    label: "LinkedIn",
+    placeholder: "https://linkedin.com/in/your-handle",
+  },
+  {
+    key: "github",
+    label: "GitHub",
+    placeholder: "https://github.com/your-handle",
+  },
+  {
+    key: "instagram",
+    label: "Instagram",
+    placeholder: "https://instagram.com/your-handle",
+  },
+  {
+    key: "facebook",
+    label: "Facebook",
+    placeholder: "https://facebook.com/your-handle",
+  },
+];
+
 const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
   { value: "freshman", label: "Freshman" },
   { value: "sophomore", label: "Sophomore" },
@@ -34,15 +64,28 @@ interface EditState {
   projects: TimelineItem[];
   achievements: TimelineItem[];
   summary: string;
+  socialLinks: SocialLinks;
+}
+
+function getAvailableSocialLinkOptions(socialLinks: SocialLinks) {
+  return SOCIAL_LINK_OPTIONS.filter(
+    ({ key }) => !Object.prototype.hasOwnProperty.call(socialLinks, key),
+  );
+}
+
+function getActiveSocialLinkOptions(socialLinks: SocialLinks) {
+  return SOCIAL_LINK_OPTIONS.filter(({ key }) => Object.prototype.hasOwnProperty.call(socialLinks, key));
 }
 
 export default function OnboardProfilePage() {
   const router = useRouter();
   const [state, setState] = useState<EditState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [skillInput, setSkillInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [pendingSocialLink, setPendingSocialLink] = useState<SocialLinkKey | "">("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -61,9 +104,13 @@ export default function OnboardProfilePage() {
         }
 
         if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: string };
+          setLoadError(payload.error ?? "Unable to load your profile draft.");
           setState(null);
           return;
         }
+
+        setLoadError(null);
 
         const payload = (await response.json()) as {
           draft?: DraftProfile | null;
@@ -80,6 +127,7 @@ export default function OnboardProfilePage() {
           achievements: [],
           summary: "",
           skills: [],
+          socialLinks: {},
         };
         const draft = payload.draft ?? fallbackDraft;
 
@@ -89,8 +137,10 @@ export default function OnboardProfilePage() {
           projects: draft.projects.length ? draft.projects : [{ ...EMPTY_TIMELINE }],
           achievements: draft.achievements.length ? draft.achievements : [{ ...EMPTY_TIMELINE }],
           summary: draft.summary ?? "",
+          socialLinks: draft.socialLinks ?? {},
         });
       } catch {
+        setLoadError("Unable to load your profile draft.");
         setState(null);
       } finally {
         setLoading(false);
@@ -102,10 +152,59 @@ export default function OnboardProfilePage() {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+
+    const availableOptions = getAvailableSocialLinkOptions(state.socialLinks);
+
+    if (!availableOptions.length) {
+      if (pendingSocialLink !== "") {
+        setPendingSocialLink("");
+      }
+      return;
+    }
+
+    if (!availableOptions.some(({ key }) => key === pendingSocialLink)) {
+      setPendingSocialLink(availableOptions[0].key);
+    }
+  }, [pendingSocialLink, state]);
+
   if (loading) return null;
 
-  if (!state) return null;
-  const { draft, skills, projects, achievements, summary } = state;
+  if (!state) {
+    return (
+      <PageLayout width="md" className="py-10" containerClassName="max-w-2xl">
+        <div className="border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
+            Profile editor unavailable
+          </p>
+          <p className="mt-2 text-sm text-[var(--color-text)]">
+            {loadError ?? "Unable to load your profile draft."}
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Link
+              href="/"
+              className="inline-flex h-9 items-center justify-center border border-[var(--color-border)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            >
+              Back to directory
+            </Link>
+            <button
+              type="button"
+              onClick={() => router.refresh()}
+              className="inline-flex h-9 items-center justify-center border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-white hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)]"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+  const { draft, skills, projects, achievements, summary, socialLinks } = state;
+  const activeSocialLinkOptions = getActiveSocialLinkOptions(socialLinks);
+  const availableSocialLinkOptions = getAvailableSocialLinkOptions(socialLinks);
 
   // ── skills ──────────────────────────────────────────────
   function addSkill() {
@@ -132,6 +231,50 @@ export default function OnboardProfilePage() {
   function addAchievement() { setState((s) => s && ({ ...s, achievements: [...s.achievements, { ...EMPTY_TIMELINE }] })); }
   function removeAchievement(i: number) { setState((s) => s && ({ ...s, achievements: s.achievements.filter((_, idx) => idx !== i) })); }
 
+  function updateSocialLink(key: SocialLinkKey, value: string) {
+    setState((s) =>
+      s
+        ? {
+            ...s,
+            socialLinks: { ...s.socialLinks, [key]: value },
+          }
+        : s,
+    );
+  }
+
+  function addSocialLinkField() {
+    if (!pendingSocialLink) {
+      return;
+    }
+
+    setState((s) => {
+      if (!s || Object.prototype.hasOwnProperty.call(s.socialLinks, pendingSocialLink)) {
+        return s;
+      }
+
+      return {
+        ...s,
+        socialLinks: { ...s.socialLinks, [pendingSocialLink]: "" },
+      };
+    });
+  }
+
+  function removeSocialLinkField(key: SocialLinkKey) {
+    setState((s) => {
+      if (!s) {
+        return s;
+      }
+
+      const nextSocialLinks = { ...s.socialLinks };
+      delete nextSocialLinks[key];
+
+      return {
+        ...s,
+        socialLinks: nextSocialLinks,
+      };
+    });
+  }
+
   // ── save ─────────────────────────────────────────────────
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -144,6 +287,7 @@ export default function OnboardProfilePage() {
       projects: projects.filter((p) => p.title.trim()),
       achievements: achievements.filter((a) => a.title.trim()),
       summary,
+      socialLinks,
     };
 
     try {
@@ -160,6 +304,7 @@ export default function OnboardProfilePage() {
           skills: updated.skills,
           projects: updated.projects,
           achievements: updated.achievements,
+          socialLinks: updated.socialLinks,
         }),
       });
 
@@ -323,6 +468,81 @@ export default function OnboardProfilePage() {
               onChange={(e) => setState((s) => s && ({ ...s, summary: e.target.value }))}
               className={`${inputCls} resize-y`}
             />
+          </Section>
+
+          <Section title="Social links">
+            <div className="flex flex-col gap-4">
+              {activeSocialLinkOptions.length ? (
+                <div className="flex flex-col gap-4">
+                  {activeSocialLinkOptions.map((option) => (
+                    <div
+                      key={option.key}
+                      className="border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+                    >
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <label
+                          htmlFor={`social-link-${option.key}`}
+                          className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]"
+                        >
+                          {option.label}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => removeSocialLinkField(option.key)}
+                          className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] transition hover:text-[var(--color-accent)]"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <input
+                        id={`social-link-${option.key}`}
+                        type="url"
+                        placeholder={option.placeholder}
+                        value={socialLinks[option.key] ?? ""}
+                        onChange={(e) => updateSocialLink(option.key, e.target.value)}
+                        className={inputCls}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="border-[2px] border-dashed border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
+                  Add the social platforms you want to show on your portfolio.
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                    Platform
+                  </label>
+                  <select
+                    value={pendingSocialLink}
+                    onChange={(e) => setPendingSocialLink(e.target.value as SocialLinkKey | "")}
+                    disabled={!availableSocialLinkOptions.length}
+                    className="w-full cursor-pointer appearance-none border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 pr-8 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {availableSocialLinkOptions.length ? (
+                      availableSocialLinkOptions.map((option) => (
+                        <option key={option.key} value={option.key}>
+                          {option.label}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">All available platforms added</option>
+                    )}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={addSocialLinkField}
+                  disabled={!pendingSocialLink}
+                  className="border-[2px] border-[var(--color-brand)] bg-[var(--color-brand)] px-4 py-2.5 font-heading text-xs uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)]/90 disabled:cursor-not-allowed disabled:border-[var(--color-border)] disabled:bg-[var(--color-border)] disabled:text-[var(--color-text-muted)]"
+                >
+                  Add social link
+                </button>
+              </div>
+            </div>
           </Section>
 
           {/* ── Projects ── */}
