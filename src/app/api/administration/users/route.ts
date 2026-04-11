@@ -133,29 +133,6 @@ async function getActiveRoleAssignerCount(): Promise<number> {
   return rows.length > 0 ? parseInteger(rows[0].total) : 0;
 }
 
-async function isBootstrapRoleAssigner(userId: number): Promise<boolean> {
-  const assignerCount = await getActiveRoleAssignerCount();
-  if (assignerCount > 0) {
-    return false;
-  }
-
-  const prisma = getPrismaClient();
-  const firstActiveAdminRows = await prisma.$queryRaw<Array<{ id: unknown }>>`
-    SELECT id
-    FROM users
-    WHERE user_type = 'ADMINISTRATION'
-      AND is_active = true
-    ORDER BY createdAt ASC, id ASC
-    LIMIT 1
-  `;
-
-  if (firstActiveAdminRows.length === 0) {
-    return false;
-  }
-
-  return parseInteger(firstActiveAdminRows[0].id) === userId;
-}
-
 async function getIsUserActive(userId: number): Promise<boolean> {
   const prisma = getPrismaClient();
   const rows = await prisma.$queryRaw<Array<{ is_active: unknown }>>`
@@ -201,13 +178,12 @@ async function requireAdminSession() {
 
   const security = await getUserSecurity(user.id);
 
-  const bootstrapCanAssignRoles = !security.canAssignRoles && (await isBootstrapRoleAssigner(user.id));
-
   return {
     ok: true as const,
     userId: user.id,
     administrationRole: security.administrationRole,
-    canAssignRoles: security.canAssignRoles || bootstrapCanAssignRoles,
+    // Any authenticated administration account can edit administration roles/permissions.
+    canAssignRoles: true,
   };
 }
 
