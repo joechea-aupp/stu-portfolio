@@ -1,19 +1,13 @@
-import { randomBytes, scryptSync } from "node:crypto";
 import { cookies } from "next/headers";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSessionToken, getSessionTtlSeconds, SESSION_COOKIE_NAME } from "@/lib/auth-session";
+import { hashPassword } from "@/lib/password";
 
 interface RegisterPayload {
   name: string;
   email: string;
   password: string;
   userType: "STUDENT" | "ADMINISTRATION";
-}
-
-function hashPassword(password: string): string {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, 64).toString("hex");
-  return `scrypt:${salt}:${hash}`;
 }
 
 function validate(body: unknown): { ok: true; data: RegisterPayload } | { ok: false; error: string } {
