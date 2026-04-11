@@ -76,7 +76,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `MYSQL_DATABASE` | Database name |
 | `MYSQL_USER` | App database user |
 | `MYSQL_PASSWORD` | App database user password |
-| `DATABASE_URL` | Prisma/MySQL connection string used by local Node.js runtime |
+| `DATABASE_URL` | Prisma/MySQL connection string used by local Node.js runtime (for local host access on MySQL 8, include `?allowPublicKeyRetrieval=true`) |
 
 Inside Docker, `DATABASE_URL` is assembled automatically in `docker-compose.yml`.
 For local development outside Docker, set `DATABASE_URL` in `.env` (see `.env.example`).
@@ -97,9 +97,18 @@ npm run db:migrate
 # Push schema without migrations (optional)
 npm run db:push
 
+# Seed database from mock data (src/data/students.ts)
+npm run db:seed
+
 # Open Prisma Studio
 npm run db:studio
 ```
+
+The seed script creates one `users` record plus one linked `students` record per item in `src/data/students.ts`.
+
+- Seed user email format: `<mock-id>@seed.local`
+- Seed password env override: `SEED_USER_PASSWORD`
+- Default seed password (if not set): `ChangeMe123!`
 
 ---
 
