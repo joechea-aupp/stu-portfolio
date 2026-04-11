@@ -123,7 +123,7 @@ export async function POST(request: Request) {
       where: {
         user_id: userId,
       },
-      data: {
+      update: {
         major: String(major),
         graduation_year: gradYearInt,
         classification: classificationKey,
