@@ -38,7 +38,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push(payload.user?.hasProfile ? "/onboard/profile" : "/onboard");
+      router.push("/onboard/profile");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
