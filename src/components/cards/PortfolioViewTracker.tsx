@@ -2,41 +2,19 @@
 
 import { useEffect } from "react";
 
-const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
 const VIEW_DEBOUNCE_WINDOW_MS = 15_000;
+const trackedAtByStudent = new Map<string, number>();
 
 type StudentMetricsResponse = {
   metrics?: {
     views?: number;
+    kudos?: number;
   };
 };
 
-function writeStorageView(studentId: string, value: number) {
-  try {
-    const raw = window.localStorage.getItem(PORTFOLIO_VIEWS_STORAGE_KEY) ?? "{}";
-    const parsed = JSON.parse(raw);
-    const current = parsed && typeof parsed === "object" ? parsed : {};
-    const next = {
-      ...current,
-      [studentId]: value,
-    };
-
-    window.localStorage.setItem(PORTFOLIO_VIEWS_STORAGE_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event("portfolio-views-updated"));
-  } catch {
-    // Ignore storage failures.
-  }
-}
-
 export function PortfolioViewTracker({ studentId }: { studentId: string }) {
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const sessionKey = `portfolio-view-tracker:${studentId}`;
-    const lastTrackedAtRaw = window.sessionStorage.getItem(sessionKey);
-    const lastTrackedAt = lastTrackedAtRaw ? Number.parseInt(lastTrackedAtRaw, 10) : 0;
+    const lastTrackedAt = trackedAtByStudent.get(studentId) ?? 0;
 
     if (
       Number.isFinite(lastTrackedAt) &&
@@ -70,8 +48,18 @@ export function PortfolioViewTracker({ studentId }: { studentId: string }) {
         const dbViews = data.metrics?.views;
 
         if (typeof dbViews === "number" && Number.isFinite(dbViews) && dbViews >= 0) {
-          writeStorageView(studentId, dbViews);
-          window.sessionStorage.setItem(sessionKey, String(Date.now()));
+          trackedAtByStudent.set(studentId, Date.now());
+          window.dispatchEvent(
+            new CustomEvent("student-metrics-updated", {
+              detail: {
+                studentId,
+                metrics: {
+                  views: dbViews,
+                  kudos: data.metrics?.kudos,
+                },
+              },
+            }),
+          );
         }
       } catch {
         // Ignore network errors.

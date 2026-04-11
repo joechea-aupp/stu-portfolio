@@ -140,6 +140,8 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
       name: dbStudent.user.name,
       year: toAcademicYear(dbStudent.classification),
       major: dbStudent.major,
+      viewCount: dbStudent.view_count,
+      kudoCount: dbStudent.kudo_count,
       skills: asStringArray(dbStudent.skills),
       available: dbStudent.available_for_project,
       projects: asTimelineItems(dbStudent.projects),

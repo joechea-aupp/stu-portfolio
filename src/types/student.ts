@@ -30,6 +30,8 @@ export interface Student {
   name: string;
   year: AcademicYear;
   major: string;
+  viewCount: number;
+  kudoCount: number;
   skills: string[];
   available: boolean;
   projects: TimelineItem[];

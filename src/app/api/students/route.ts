@@ -82,6 +82,8 @@ export async function GET() {
       name: student.user.name,
       year: toAcademicYear(student.classification),
       major: student.major,
+      viewCount: student.view_count,
+      kudoCount: student.kudo_count,
       skills: asStringArray(student.skills),
       available: student.available_for_project,
       projects: asTimelineItems(student.projects),
