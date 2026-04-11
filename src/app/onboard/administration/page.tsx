@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdministrationGender, AdministrationProfile, AdministrationTitle } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { AdministrationUserManager } from "@/components/onboard/AdministrationUserManager";
 import { OnboardProfileSkeleton } from "@/components/onboard/OnboardProfileSkeleton";
 
 interface DraftResponse {
@@ -24,6 +25,8 @@ interface EditState {
   summary: string;
   profilePicUrl: string;
 }
+
+type AdministrationTab = "profile" | "users";
 
 const TITLES: Array<{ value: AdministrationTitle; label: string }> = [
   { value: "MR", label: "Mr." },
@@ -55,6 +58,7 @@ export default function AdministrationOnboardPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<AdministrationTab>("profile");
 
   useEffect(() => {
     let active = true;
@@ -247,206 +251,245 @@ export default function AdministrationOnboardPage() {
   }
 
   return (
-    <PageLayout width="md" className="py-10" containerClassName="max-w-2xl">
+    <PageLayout
+      width="md"
+      className="py-10"
+      containerClassName={activeTab === "users" ? "max-w-6xl" : "max-w-2xl"}
+    >
       <Link
         href="/"
-        className="inline-block border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
+        className="inline-flex h-9 items-center border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
       >
         ← Back to directory
       </Link>
 
-      <div className="mb-8 mt-6 flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="relative h-16 w-16 flex-shrink-0 overflow-hidden border-[2px] border-[var(--color-brand)] bg-[var(--color-bg)] transition hover:border-[var(--color-accent)] disabled:opacity-60"
-          aria-label="Upload profile photo"
-        >
-          {uploading ? (
-            <span className="absolute inset-0 flex items-center justify-center text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-              Uploading...
-            </span>
-          ) : preview ? (
-            <Image src={preview} alt="Profile preview" fill className="object-cover" />
-          ) : (
-            <span className="absolute inset-0 flex items-center justify-center text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-              Upload
-            </span>
-          )}
-        </button>
-        <div>
-          <p className="font-heading text-xl uppercase leading-tight text-[var(--color-text)]">{state.name}</p>
-          <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-            Administration profile
-          </p>
-          <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">JPG or PNG, max 5 MB</p>
+      <div className="mt-4 mb-2 border-b border-[var(--color-border)] pb-3">
+        <div className="inline-flex border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab("profile")}
+            className={`min-w-24 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+              activeTab === "profile"
+                ? "bg-[var(--color-accent)] text-white"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            }`}
+            aria-pressed={activeTab === "profile"}
+          >
+            Profile
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("users")}
+            className={`min-w-24 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+              activeTab === "users"
+                ? "bg-[var(--color-accent)] text-white"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            }`}
+            aria-pressed={activeTab === "users"}
+          >
+            Users
+          </button>
         </div>
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png"
-        className="sr-only"
-        onChange={handlePhotoChange}
-      />
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-10">
-        <Section title="Profile info">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Title" htmlFor="title">
-              <select
-                id="title"
-                value={state.title}
-                onChange={(e) =>
-                  setState((current) =>
-                    current
-                      ? {
-                          ...current,
-                          title: e.target.value as AdministrationTitle,
-                        }
-                      : current,
-                  )
-                }
-                className={`${inputClassName} cursor-pointer appearance-none bg-[var(--color-surface)]`}
-              >
-                {TITLES.map((entry) => (
-                  <option key={entry.value} value={entry.value}>
-                    {entry.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Occupation" htmlFor="occupation">
-              <input
-                id="occupation"
-                type="text"
-                value={state.occupation}
-                onChange={(e) =>
-                  setState((current) =>
-                    current
-                      ? {
-                          ...current,
-                          occupation: e.target.value,
-                        }
-                      : current,
-                  )
-                }
-                required
-                className={inputClassName}
-                placeholder="e.g. Program Director"
-              />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Company" htmlFor="company">
-              <input
-                id="company"
-                type="text"
-                value={state.company}
-                onChange={(e) =>
-                  setState((current) =>
-                    current
-                      ? {
-                          ...current,
-                          company: e.target.value,
-                        }
-                      : current,
-                  )
-                }
-                required
-                className={inputClassName}
-                placeholder="e.g. AUPP"
-              />
-            </Field>
-
-            <Field label="Phone number" htmlFor="phoneNumber">
-              <input
-                id="phoneNumber"
-                type="tel"
-                value={state.phoneNumber}
-                onChange={(e) =>
-                  setState((current) =>
-                    current
-                      ? {
-                          ...current,
-                          phoneNumber: e.target.value,
-                        }
-                      : current,
-                  )
-                }
-                required
-                className={inputClassName}
-                placeholder="e.g. +855 12 345 678"
-              />
-            </Field>
-          </div>
-
-          <Field label="Gender" htmlFor="gender">
-            <select
-              id="gender"
-              value={state.gender}
-              onChange={(e) =>
-                setState((current) =>
-                  current
-                    ? {
-                        ...current,
-                        gender: e.target.value as AdministrationGender | "",
-                      }
-                    : current,
-                )
-              }
-              required
-              className={`${inputClassName} cursor-pointer appearance-none bg-[var(--color-surface)]`}
+      {activeTab === "profile" ? (
+        <>
+          <div className="mb-8 mt-6 flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="relative h-16 w-16 flex-shrink-0 overflow-hidden border-[2px] border-[var(--color-brand)] bg-[var(--color-bg)] transition hover:border-[var(--color-accent)] disabled:opacity-60"
+              aria-label="Upload profile photo"
             >
-              <option value="">Select gender</option>
-              {GENDERS.map((entry) => (
-                <option key={entry.value} value={entry.value}>
-                  {entry.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </Section>
+              {uploading ? (
+                <span className="absolute inset-0 flex items-center justify-center text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  Uploading...
+                </span>
+              ) : preview ? (
+                <Image src={preview} alt="Profile preview" fill className="object-cover" />
+              ) : (
+                <span className="absolute inset-0 flex items-center justify-center text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  Upload
+                </span>
+              )}
+            </button>
+            <div>
+              <p className="font-heading text-xl uppercase leading-tight text-[var(--color-text)]">{state.name}</p>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                Administration profile
+              </p>
+              <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">JPG or PNG, max 5 MB</p>
+            </div>
+          </div>
 
-        <Section title="Notes / Summary">
-          <textarea
-            id="summary"
-            value={state.summary}
-            onChange={(e) =>
-              setState((current) =>
-                current
-                  ? {
-                      ...current,
-                      summary: e.target.value,
-                    }
-                  : current,
-              )
-            }
-            required
-            rows={5}
-            className={`${inputClassName} resize-y`}
-            placeholder="Short administration profile summary"
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png"
+            className="sr-only"
+            onChange={handlePhotoChange}
           />
-        </Section>
 
-        {saveFeedback ? (
-          <p className="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-            {saveFeedback}
-          </p>
-        ) : null}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-10">
+            <Section title="Profile info">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Title" htmlFor="title">
+                  <select
+                    id="title"
+                    value={state.title}
+                    onChange={(e) =>
+                      setState((current) =>
+                        current
+                          ? {
+                              ...current,
+                              title: e.target.value as AdministrationTitle,
+                            }
+                          : current,
+                      )
+                    }
+                    className={`${inputClassName} cursor-pointer appearance-none bg-[var(--color-surface)]`}
+                  >
+                    {TITLES.map((entry) => (
+                      <option key={entry.value} value={entry.value}>
+                        {entry.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-        <button
-          type="submit"
-          disabled={saving || uploading}
-          className="w-full border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {saving ? "Saving..." : "Save profile"}
-        </button>
-      </form>
+                <Field label="Occupation" htmlFor="occupation">
+                  <input
+                    id="occupation"
+                    type="text"
+                    value={state.occupation}
+                    onChange={(e) =>
+                      setState((current) =>
+                        current
+                          ? {
+                              ...current,
+                              occupation: e.target.value,
+                            }
+                          : current,
+                      )
+                    }
+                    required
+                    className={inputClassName}
+                    placeholder="e.g. Program Director"
+                  />
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Company" htmlFor="company">
+                  <input
+                    id="company"
+                    type="text"
+                    value={state.company}
+                    onChange={(e) =>
+                      setState((current) =>
+                        current
+                          ? {
+                              ...current,
+                              company: e.target.value,
+                            }
+                          : current,
+                      )
+                    }
+                    required
+                    className={inputClassName}
+                    placeholder="e.g. AUPP"
+                  />
+                </Field>
+
+                <Field label="Phone number" htmlFor="phoneNumber">
+                  <input
+                    id="phoneNumber"
+                    type="tel"
+                    value={state.phoneNumber}
+                    onChange={(e) =>
+                      setState((current) =>
+                        current
+                          ? {
+                              ...current,
+                              phoneNumber: e.target.value,
+                            }
+                          : current,
+                      )
+                    }
+                    required
+                    className={inputClassName}
+                    placeholder="e.g. +855 12 345 678"
+                  />
+                </Field>
+              </div>
+
+              <Field label="Gender" htmlFor="gender">
+                <select
+                  id="gender"
+                  value={state.gender}
+                  onChange={(e) =>
+                    setState((current) =>
+                      current
+                        ? {
+                            ...current,
+                            gender: e.target.value as AdministrationGender | "",
+                          }
+                        : current,
+                    )
+                  }
+                  required
+                  className={`${inputClassName} cursor-pointer appearance-none bg-[var(--color-surface)]`}
+                >
+                  <option value="">Select gender</option>
+                  {GENDERS.map((entry) => (
+                    <option key={entry.value} value={entry.value}>
+                      {entry.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </Section>
+
+            <Section title="Notes / Summary">
+              <textarea
+                id="summary"
+                value={state.summary}
+                onChange={(e) =>
+                  setState((current) =>
+                    current
+                      ? {
+                          ...current,
+                          summary: e.target.value,
+                        }
+                      : current,
+                  )
+                }
+                required
+                rows={5}
+                className={`${inputClassName} resize-y`}
+                placeholder="Short administration profile summary"
+              />
+            </Section>
+
+            {saveFeedback ? (
+              <p className="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                {saveFeedback}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={saving || uploading}
+              className="w-full border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Saving..." : "Save profile"}
+            </button>
+          </form>
+        </>
+      ) : (
+        <AdministrationUserManager className="mt-6" />
+      )}
     </PageLayout>
   );
 }

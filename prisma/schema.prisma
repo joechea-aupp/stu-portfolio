@@ -11,6 +11,7 @@ model users {
   name      String
   email     String   @unique
   password  String
+  is_active Boolean  @default(true)
   user_type UserType @default(STUDENT)
   createdAt DateTime @default(now())
   student Student?

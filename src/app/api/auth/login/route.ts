@@ -1,7 +1,7 @@
-import { scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSessionToken, getSessionTtlSeconds, SESSION_COOKIE_NAME } from "@/lib/auth-session";
+import { verifyPassword } from "@/lib/password";
 
 interface LoginPayload {
   email: string;
@@ -28,22 +28,25 @@ function validate(body: unknown): { ok: true; data: LoginPayload } | { ok: false
   return { ok: true, data: { email, password } };
 }
 
-function verifyPassword(password: string, storedHash: string): boolean {
-  const [algorithm, salt, hash] = storedHash.split(":");
-
-  if (algorithm !== "scrypt" || !salt || !hash) {
-    return false;
+function coerceBoolean(value: unknown): boolean {
+  if (typeof value === "boolean") {
+    return value;
   }
 
-  const derived = scryptSync(password, salt, 64).toString("hex");
-  const derivedBuffer = Buffer.from(derived);
-  const hashBuffer = Buffer.from(hash);
-
-  if (derivedBuffer.length !== hashBuffer.length) {
-    return false;
+  if (typeof value === "number") {
+    return value !== 0;
   }
 
-  return timingSafeEqual(derivedBuffer, hashBuffer);
+  if (typeof value === "bigint") {
+    return value !== BigInt(0);
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "1" || normalized === "true";
+  }
+
+  return false;
 }
 
 export async function POST(request: Request) {
@@ -85,6 +88,18 @@ export async function POST(request: Request) {
 
   if (!user || !verifyPassword(password, user.password)) {
     return Response.json({ error: "Invalid email or password." }, { status: 401 });
+  }
+
+  const activeRows = await prisma.$queryRaw<Array<{ is_active: unknown }>>`
+    SELECT is_active
+    FROM users
+    WHERE id = ${user.id}
+    LIMIT 1
+  `;
+  const isActive = activeRows.length > 0 ? coerceBoolean(activeRows[0].is_active) : false;
+
+  if (!isActive) {
+    return Response.json({ error: "This account has been disabled." }, { status: 403 });
   }
 
   const cookieStore = await cookies();
