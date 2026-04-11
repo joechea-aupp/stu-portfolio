@@ -30,4 +30,6 @@ model Student {
   classification Classification
   // user create soley for typescript type safety and relation, authentication handled separately
   user users @relation(fields: [user_id], references: [id])
+
+  @@map("students")
 }
