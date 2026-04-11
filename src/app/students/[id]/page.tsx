@@ -108,6 +108,21 @@ function asTimelineItems(value: unknown): TimelineItem[] {
   return items;
 }
 
+function asSocialLinks(value: unknown): SocialLinks {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return {
+    linkedin: typeof candidate.linkedin === "string" ? candidate.linkedin : undefined,
+    facebook: typeof candidate.facebook === "string" ? candidate.facebook : undefined,
+    github: typeof candidate.github === "string" ? candidate.github : undefined,
+    instagram: typeof candidate.instagram === "string" ? candidate.instagram : undefined,
+  };
+}
+
 function toAcademicYear(value: string): AcademicYear {
   return value.toLowerCase() as AcademicYear;
 }
@@ -151,7 +166,7 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
         dbStudent.image_url && dbStudent.image_url.trim().length > 0
           ? dbStudent.image_url
           : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=640&q=80",
-      socialLinks: {},
+      socialLinks: asSocialLinks(dbStudent.social_links),
     };
   } catch {
     return null;

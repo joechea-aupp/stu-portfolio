@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { AcademicYear, TimelineItem } from "@/types/student";
+import type { AcademicYear, SocialLinks, TimelineItem } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
 
 interface DraftProfile {
@@ -18,6 +18,7 @@ interface DraftProfile {
   achievements: TimelineItem[];
   summary: string;
   skills: string[];
+  socialLinks?: SocialLinks;
 }
 
 const EMPTY_TIMELINE: TimelineItem = { period: "", title: "", details: "" };
@@ -34,12 +35,14 @@ interface EditState {
   projects: TimelineItem[];
   achievements: TimelineItem[];
   summary: string;
+  socialLinks: SocialLinks;
 }
 
 export default function OnboardProfilePage() {
   const router = useRouter();
   const [state, setState] = useState<EditState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [skillInput, setSkillInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
@@ -61,9 +64,13 @@ export default function OnboardProfilePage() {
         }
 
         if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: string };
+          setLoadError(payload.error ?? "Unable to load your profile draft.");
           setState(null);
           return;
         }
+
+        setLoadError(null);
 
         const payload = (await response.json()) as {
           draft?: DraftProfile | null;
@@ -80,6 +87,7 @@ export default function OnboardProfilePage() {
           achievements: [],
           summary: "",
           skills: [],
+          socialLinks: {},
         };
         const draft = payload.draft ?? fallbackDraft;
 
@@ -89,8 +97,10 @@ export default function OnboardProfilePage() {
           projects: draft.projects.length ? draft.projects : [{ ...EMPTY_TIMELINE }],
           achievements: draft.achievements.length ? draft.achievements : [{ ...EMPTY_TIMELINE }],
           summary: draft.summary ?? "",
+          socialLinks: draft.socialLinks ?? {},
         });
       } catch {
+        setLoadError("Unable to load your profile draft.");
         setState(null);
       } finally {
         setLoading(false);
@@ -104,8 +114,36 @@ export default function OnboardProfilePage() {
 
   if (loading) return null;
 
-  if (!state) return null;
-  const { draft, skills, projects, achievements, summary } = state;
+  if (!state) {
+    return (
+      <PageLayout width="md" className="py-10" containerClassName="max-w-2xl">
+        <div className="border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
+            Profile editor unavailable
+          </p>
+          <p className="mt-2 text-sm text-[var(--color-text)]">
+            {loadError ?? "Unable to load your profile draft."}
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Link
+              href="/"
+              className="inline-flex h-9 items-center justify-center border border-[var(--color-border)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            >
+              Back to directory
+            </Link>
+            <button
+              type="button"
+              onClick={() => router.refresh()}
+              className="inline-flex h-9 items-center justify-center border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-white hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)]"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+  const { draft, skills, projects, achievements, summary, socialLinks } = state;
 
   // ── skills ──────────────────────────────────────────────
   function addSkill() {
@@ -144,6 +182,7 @@ export default function OnboardProfilePage() {
       projects: projects.filter((p) => p.title.trim()),
       achievements: achievements.filter((a) => a.title.trim()),
       summary,
+      socialLinks,
     };
 
     try {
@@ -160,6 +199,7 @@ export default function OnboardProfilePage() {
           skills: updated.skills,
           projects: updated.projects,
           achievements: updated.achievements,
+          socialLinks: updated.socialLinks,
         }),
       });
 
@@ -323,6 +363,90 @@ export default function OnboardProfilePage() {
               onChange={(e) => setState((s) => s && ({ ...s, summary: e.target.value }))}
               className={`${inputCls} resize-y`}
             />
+          </Section>
+
+          <Section title="Social links">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">LinkedIn</label>
+                <input
+                  type="url"
+                  placeholder="https://linkedin.com/in/your-handle"
+                  value={socialLinks.linkedin ?? ""}
+                  onChange={(e) =>
+                    setState((s) =>
+                      s
+                        ? {
+                            ...s,
+                            socialLinks: { ...s.socialLinks, linkedin: e.target.value },
+                          }
+                        : s,
+                    )
+                  }
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">GitHub</label>
+                <input
+                  type="url"
+                  placeholder="https://github.com/your-handle"
+                  value={socialLinks.github ?? ""}
+                  onChange={(e) =>
+                    setState((s) =>
+                      s
+                        ? {
+                            ...s,
+                            socialLinks: { ...s.socialLinks, github: e.target.value },
+                          }
+                        : s,
+                    )
+                  }
+                  className={inputCls}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Instagram</label>
+                <input
+                  type="url"
+                  placeholder="https://instagram.com/your-handle"
+                  value={socialLinks.instagram ?? ""}
+                  onChange={(e) =>
+                    setState((s) =>
+                      s
+                        ? {
+                            ...s,
+                            socialLinks: { ...s.socialLinks, instagram: e.target.value },
+                          }
+                        : s,
+                    )
+                  }
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Facebook</label>
+                <input
+                  type="url"
+                  placeholder="https://facebook.com/your-handle"
+                  value={socialLinks.facebook ?? ""}
+                  onChange={(e) =>
+                    setState((s) =>
+                      s
+                        ? {
+                            ...s,
+                            socialLinks: { ...s.socialLinks, facebook: e.target.value },
+                          }
+                        : s,
+                    )
+                  }
+                  className={inputCls}
+                />
+              </div>
+            </div>
           </Section>
 
           {/* ── Projects ── */}
