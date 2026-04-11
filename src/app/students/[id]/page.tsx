@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PortfolioStats } from "@/components/cards/PortfolioStats";
+import { PortfolioViewTracker } from "@/components/cards/PortfolioViewTracker";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { getPrismaClient } from "@/lib/prisma";
 import type { AcademicYear, SocialLinks, Student, TimelineItem } from "@/types/student";
@@ -139,9 +140,10 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
       name: dbStudent.user.name,
       year: toAcademicYear(dbStudent.classification),
       major: dbStudent.major,
+      viewCount: dbStudent.view_count,
+      kudoCount: dbStudent.kudo_count,
       skills: asStringArray(dbStudent.skills),
       available: dbStudent.available_for_project,
-      gpa: 0,
       projects: asTimelineItems(dbStudent.projects),
       achievements: asTimelineItems(dbStudent.achievements),
       summary: dbStudent.summary ?? "",
@@ -270,6 +272,7 @@ export default async function StudentPortfolioPage({
 
   return (
     <PageLayout width="lg">
+        <PortfolioViewTracker studentId={student.id} />
         <Link
           href="/"
           className="inline-block border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white"

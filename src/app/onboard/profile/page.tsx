@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AcademicYear, TimelineItem } from "@/types/student";
-import { DRAFT_KEY } from "@/app/onboard/draft";
 import { PageLayout } from "@/components/layout/PageLayout";
 
 interface DraftProfile {
@@ -33,24 +32,59 @@ interface EditState {
 
 export default function OnboardProfilePage() {
   const router = useRouter();
-  const [state, setState] = useState<EditState | null>(() => {
-    if (typeof window === "undefined") return null;
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return null;
-    const d: DraftProfile = JSON.parse(raw);
-    return {
-      draft: d,
-      skills: d.skills ?? [],
-      projects: d.projects.length ? d.projects : [{ ...EMPTY_TIMELINE }],
-      achievements: d.achievements.length ? d.achievements : [{ ...EMPTY_TIMELINE }],
-      summary: d.summary ?? "",
-    };
-  });
+  const [state, setState] = useState<EditState | null>(null);
+  const [loading, setLoading] = useState(true);
   const [skillInput, setSkillInput] = useState("");
 
   useEffect(() => {
-    if (state === null) router.replace("/onboard");
-  }, [state, router]);
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/onboard", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (response.status === 401) {
+          router.replace("/create-account");
+          return;
+        }
+
+        if (!response.ok) {
+          router.replace("/onboard");
+          return;
+        }
+
+        const payload = (await response.json()) as { draft?: DraftProfile | null };
+        const draft = payload.draft;
+
+        if (!draft) {
+          router.replace("/onboard");
+          return;
+        }
+
+        setState({
+          draft,
+          skills: draft.skills ?? [],
+          projects: draft.projects.length ? draft.projects : [{ ...EMPTY_TIMELINE }],
+          achievements: draft.achievements.length ? draft.achievements : [{ ...EMPTY_TIMELINE }],
+          summary: draft.summary ?? "",
+        });
+      } catch {
+        router.replace("/onboard");
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [router]);
+
+  if (loading) return null;
 
   if (!state) return null;
   const { draft, skills, projects, achievements, summary } = state;
@@ -91,18 +125,10 @@ export default function OnboardProfilePage() {
       summary,
     };
 
-    const userId = localStorage.getItem("studenthub_user_id");
-    if (!userId) {
-      alert("Session expired. Please create your account again.");
-      router.replace("/create-account");
-      return;
-    }
-
     const response = await fetch("/api/onboard", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userId: Number(userId),
         major: updated.major,
         graduationYear: updated.graduationYear,
         year: updated.year,
@@ -122,8 +148,6 @@ export default function OnboardProfilePage() {
       return;
     }
 
-    localStorage.removeItem(DRAFT_KEY);
-    localStorage.removeItem("studenthub_user_id");
     router.push("/");
   }
 

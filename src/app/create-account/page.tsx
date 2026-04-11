@@ -32,17 +32,12 @@ export default function CreateAccountPage() {
       });
 
       const payload = (await response.json()) as {
-        userId?: number;
         error?: string;
       };
 
       if (!response.ok) {
         setError(payload.error ?? "Unable to create account.");
         return;
-      }
-
-      if (payload.userId) {
-        localStorage.setItem("studenthub_user_id", String(payload.userId));
       }
 
       router.push("/onboard");

@@ -1,5 +1,7 @@
 import { randomBytes, scryptSync } from "node:crypto";
+import { cookies } from "next/headers";
 import { getPrismaClient } from "@/lib/prisma";
+import { createSessionToken, getSessionTtlSeconds, SESSION_COOKIE_NAME } from "@/lib/auth-session";
 
 interface RegisterPayload {
   name: string;
@@ -87,9 +89,18 @@ export async function POST(request: Request) {
       },
     });
 
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, createSessionToken(created.id), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: getSessionTtlSeconds(),
+    });
+
     return Response.json(
       {
-        userId: created.id,
+        registered: true,
       },
       { status: 201 },
     );
