@@ -74,6 +74,7 @@ export function DirectoryApp() {
   const [page, setPage] = useState(1);
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [kudoedStudentIds, setKudoedStudentIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (pathname !== "/") {
@@ -126,6 +127,23 @@ export function DirectoryApp() {
       controller.abort();
     };
   }, [pathname]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch("/api/student-kudos", { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as { kudoedStudentIds?: unknown };
+        if (Array.isArray(data.kudoedStudentIds)) {
+          setKudoedStudentIds(new Set(data.kudoedStudentIds.filter((id): id is string => typeof id === "string")));
+        }
+      } catch {
+        // Ignore network errors.
+      }
+    })();
+  }, []);
 
   const majorOptions = useMemo(() => {
     return Array.from(new Set(students.map((student) => student.major))).sort();
@@ -214,6 +232,9 @@ export function DirectoryApp() {
   };
 
   const handleGiveKudo = (studentId: string) => {
+    const hasKudoed = kudoedStudentIds.has(studentId);
+    const action = hasKudoed ? "unkudo" : "kudo";
+
     void (async () => {
       try {
         const response = await fetch("/api/student-metrics", {
@@ -221,10 +242,7 @@ export function DirectoryApp() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            action: "kudo",
-            studentId,
-          }),
+          body: JSON.stringify({ action, studentId }),
         });
 
         if (!response.ok) {
@@ -232,8 +250,15 @@ export function DirectoryApp() {
         }
 
         const data = (await response.json()) as StudentMetricsResponse;
-        updateStudentMetrics(studentId, {
-          kudos: data.metrics?.kudos,
+        updateStudentMetrics(studentId, { kudos: data.metrics?.kudos });
+        setKudoedStudentIds((prev) => {
+          const next = new Set(prev);
+          if (action === "kudo") {
+            next.add(studentId);
+          } else {
+            next.delete(studentId);
+          }
+          return next;
         });
       } catch {
         // Ignore network errors.
@@ -310,6 +335,7 @@ export function DirectoryApp() {
             students={paginatedStudents}
             portfolioViews={portfolioViews}
             kudos={kudos}
+            kudoedStudentIds={kudoedStudentIds}
             onViewPortfolio={handleViewPortfolio}
             onGiveKudo={handleGiveKudo}
           />

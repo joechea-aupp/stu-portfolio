@@ -6,6 +6,7 @@ interface StudentCardProps {
   student: Student;
   portfolioViews: number;
   kudoCount: number;
+  hasKudoed: boolean;
   onViewPortfolio: (studentId: string) => void;
   onGiveKudo: (studentId: string) => void;
 }
@@ -14,6 +15,7 @@ export function StudentCard({
   student,
   portfolioViews,
   kudoCount,
+  hasKudoed,
   onViewPortfolio,
   onGiveKudo,
 }: StudentCardProps) {
@@ -87,9 +89,13 @@ export function StudentCard({
           <button
             type="button"
             onClick={() => onGiveKudo(student.id)}
-            className="w-full border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-brand)] transition hover:bg-[var(--color-bg)]"
+            className={`w-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition ${
+              hasKudoed
+                ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-white hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)]"
+                : "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-brand)] hover:bg-[var(--color-bg)]"
+            }`}
           >
-            + Kudo
+            {hasKudoed ? "− Unkudo" : "+ Kudo"}
           </button>
 
           <Link

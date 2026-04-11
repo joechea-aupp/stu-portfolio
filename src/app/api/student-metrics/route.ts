@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import { getPrismaClient } from "@/lib/prisma";
 
 function parsePositiveInt(raw: string | null): number | null {
@@ -97,8 +99,83 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "studentId or userId is required." }, { status: 400 });
   }
 
-  if (action !== "view" && action !== "kudo") {
-    return Response.json({ error: "action must be 'view' or 'kudo'." }, { status: 400 });
+  if (action !== "view" && action !== "kudo" && action !== "unkudo") {
+    return Response.json({ error: "action must be 'view', 'kudo', or 'unkudo'." }, { status: 400 });
+  }
+
+  // Kudo and unkudo require an authenticated session.
+  if (action === "kudo" || action === "unkudo") {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const session = token ? verifySessionToken(token) : null;
+
+    if (!session) {
+      return Response.json({ error: "Authentication required." }, { status: 401 });
+    }
+
+    const prisma = getPrismaClient();
+
+    // Resolve the target student's numeric id.
+    const resolvedStudent = await prisma.student.findUnique({
+      where: Number.isFinite(studentId)
+        ? { id: studentId }
+        : { user_id: userId as number },
+      select: { id: true, user_id: true, kudo_count: true, view_count: true },
+    });
+
+    if (!resolvedStudent) {
+      return Response.json({ error: "Student not found." }, { status: 404 });
+    }
+
+    try {
+      let updated: { id: number; user_id: number; kudo_count: number; view_count: number };
+
+      if (action === "kudo") {
+        // Create the kudo record and increment the counter atomically.
+        await prisma.studentKudo.create({
+          data: { user_id: session.userId, student_id: resolvedStudent.id },
+        });
+        updated = await prisma.student.update({
+          where: { id: resolvedStudent.id },
+          data: { kudo_count: { increment: 1 } },
+          select: { id: true, user_id: true, kudo_count: true, view_count: true },
+        });
+      } else {
+        // Delete the kudo record and decrement the counter atomically.
+        await prisma.studentKudo.delete({
+          where: {
+            user_id_student_id: { user_id: session.userId, student_id: resolvedStudent.id },
+          },
+        });
+        updated = await prisma.student.update({
+          where: { id: resolvedStudent.id },
+          data: { kudo_count: { decrement: 1 } },
+          select: { id: true, user_id: true, kudo_count: true, view_count: true },
+        });
+      }
+
+      return Response.json({
+        studentId: updated.id,
+        userId: updated.user_id,
+        metrics: {
+          kudos: Math.max(0, updated.kudo_count),
+          views: updated.view_count,
+        },
+        updated: action,
+      });
+    } catch (error) {
+      // P2002 = unique constraint violation (already kudoed)
+      if (isKnownPrismaErrorWithCode(error, "P2002")) {
+        return Response.json({ error: "Already kudoed." }, { status: 409 });
+      }
+      // P2025 = record not found (not kudoed, or student missing)
+      if (isKnownPrismaErrorWithCode(error, "P2025")) {
+        return Response.json({ error: "Kudo not found." }, { status: 409 });
+      }
+
+      console.error("[/api/student-metrics] Unexpected error:", error);
+      return Response.json({ error: "Internal server error." }, { status: 500 });
+    }
   }
 
   const prisma = getPrismaClient();
@@ -108,10 +185,7 @@ export async function PATCH(request: Request) {
       where: Number.isFinite(studentId)
         ? { id: studentId }
         : { user_id: userId as number },
-      data:
-        action === "view"
-          ? { view_count: { increment: 1 } }
-          : { kudo_count: { increment: 1 } },
+      data: { view_count: { increment: 1 } },
       select: {
         id: true,
         user_id: true,

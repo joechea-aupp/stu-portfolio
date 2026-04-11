@@ -5,6 +5,7 @@ interface StudentGridProps {
   students: Student[];
   portfolioViews: Record<string, number>;
   kudos: Record<string, number>;
+  kudoedStudentIds: Set<string>;
   onViewPortfolio: (studentId: string) => void;
   onGiveKudo: (studentId: string) => void;
 }
@@ -13,6 +14,7 @@ export function StudentGrid({
   students,
   portfolioViews,
   kudos,
+  kudoedStudentIds,
   onViewPortfolio,
   onGiveKudo,
 }: StudentGridProps) {
@@ -25,6 +27,7 @@ export function StudentGrid({
             student={student}
             portfolioViews={portfolioViews[student.id] ?? 0}
             kudoCount={kudos[student.id] ?? 0}
+            hasKudoed={kudoedStudentIds.has(student.id)}
             onViewPortfolio={onViewPortfolio}
             onGiveKudo={onGiveKudo}
           />
