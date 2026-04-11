@@ -258,6 +258,15 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
     }
   }
 
+  async function copyEmail(email: string) {
+    try {
+      await navigator.clipboard.writeText(email);
+      setFeedback(`Copied ${email} to clipboard.`);
+    } catch {
+      setFeedback("Unable to copy email.");
+    }
+  }
+
   return (
     <>
       <section className={`${className ?? "mt-12"} border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6`}>
@@ -334,7 +343,16 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
                     <tr key={user.id} className="border-t border-[var(--color-border)] align-top">
                       <td className="px-3 py-2 text-[var(--color-text-muted)]">{user.id}</td>
                       <td className="px-3 py-2 text-[var(--color-text)]">{user.name}</td>
-                      <td className="px-3 py-2 text-[var(--color-text)]">{user.email}</td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => void copyEmail(user.email)}
+                          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold tracking-[0.04em] text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                          title="Click to copy email"
+                        >
+                          {user.email}
+                        </button>
+                      </td>
                       <td className="px-3 py-2">
                         <span
                           className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
