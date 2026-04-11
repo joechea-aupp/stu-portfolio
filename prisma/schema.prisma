@@ -13,6 +13,7 @@ model users {
   password  String
   createdAt DateTime @default(now())
   student Student?
+  kudos   StudentKudo[]
 }
 
 enum Classification {
@@ -38,7 +39,19 @@ model Student {
   projects Json
   achievements Json
   // user create soley for typescript type safety and relation, authentication handled separately
-  user users @relation(fields: [user_id], references: [id])
+  user   users         @relation(fields: [user_id], references: [id])
+  kudos  StudentKudo[]
 
   @@map("students")
+}
+
+model StudentKudo {
+  id         Int     @id @default(autoincrement())
+  user_id    Int
+  student_id Int
+  user       users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  student    Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, student_id])
+  @@map("student_kudos")
 }
