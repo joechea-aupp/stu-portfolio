@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AcademicYear } from "@/types/student";
+import { DRAFT_KEY } from "@/app/onboard/draft";
 
 const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
   { value: "freshman", label: "Freshman" },
@@ -12,8 +13,6 @@ const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
   { value: "junior", label: "Junior" },
   { value: "senior", label: "Senior" },
 ];
-
-export const DRAFT_KEY = "studenthub_draft";
 
 export default function OnboardPage() {
   const router = useRouter();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 interface OnboardModalProps {
@@ -72,12 +73,13 @@ export function OnboardModal({ open, onClose }: OnboardModalProps) {
         </div>
 
         {/* Create account */}
-        <button
-          type="button"
+        <Link
+          href="/create-account"
+          onClick={onClose}
           className="border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-accent)]/90 w-full"
         >
           Create account
-        </button>
+        </Link>
 
         <p className="text-center text-[9px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
           Already have an account?{" "}

@@ -1,8 +1,8 @@
-FROM node:20-alpine AS base
+FROM node:20-bookworm-slim AS base
 
 # ── deps: install production + dev deps ──────────────────────────────────────
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
@@ -18,6 +18,9 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Ensure Prisma Client types are generated before Next type checking.
+RUN npx prisma generate
 
 # Build with standalone output (set in next.config.ts)
 ENV NEXT_TELEMETRY_DISABLED=1

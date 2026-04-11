@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AcademicYear, TimelineItem } from "@/types/student";
-import { DRAFT_KEY } from "@/app/onboard/page";
+import { DRAFT_KEY } from "@/app/onboard/draft";
 
 interface DraftProfile {
   name: string;
