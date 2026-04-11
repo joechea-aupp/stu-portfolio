@@ -29,6 +29,7 @@ export default function LoginPage() {
       const payload = (await response.json()) as {
         error?: string;
         user?: {
+          userType?: "STUDENT" | "ADMINISTRATION";
           hasProfile?: boolean;
         };
       };
@@ -40,7 +41,13 @@ export default function LoginPage() {
 
       window.localStorage.setItem("session-known", "true");
       window.dispatchEvent(new Event("auth-state-changed"));
-      router.push("/onboard/profile");
+
+      if (payload.user?.userType === "ADMINISTRATION") {
+        router.push("/onboard/administration");
+        return;
+      }
+
+      router.push(payload.user?.hasProfile ? "/onboard/profile" : "/onboard");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

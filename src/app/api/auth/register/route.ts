@@ -7,6 +7,7 @@ interface RegisterPayload {
   name: string;
   email: string;
   password: string;
+  userType: "STUDENT" | "ADMINISTRATION";
 }
 
 function hashPassword(password: string): string {
@@ -25,6 +26,8 @@ function validate(body: unknown): { ok: true; data: RegisterPayload } | { ok: fa
   const name = data.name?.trim();
   const email = data.email?.trim().toLowerCase();
   const password = data.password;
+  const userType =
+    typeof data.userType === "string" ? data.userType.trim().toUpperCase() : "STUDENT";
 
   if (!name || !email || !password) {
     return { ok: false, error: "All fields are required." };
@@ -38,12 +41,17 @@ function validate(body: unknown): { ok: true; data: RegisterPayload } | { ok: fa
     return { ok: false, error: "Password must be at least 8 characters." };
   }
 
+  if (userType !== "STUDENT" && userType !== "ADMINISTRATION") {
+    return { ok: false, error: "userType must be STUDENT or ADMINISTRATION." };
+  }
+
   return {
     ok: true,
     data: {
       name,
       email,
       password,
+      userType: userType as "STUDENT" | "ADMINISTRATION",
     },
   };
 }
@@ -83,9 +91,11 @@ export async function POST(request: Request) {
         name,
         email,
         password: hashPassword(password),
+        user_type: validation.data.userType,
       },
       select: {
         id: true,
+        user_type: true,
       },
     });
 
@@ -101,6 +111,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         registered: true,
+        userType: created.user_type,
       },
       { status: 201 },
     );

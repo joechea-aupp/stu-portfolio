@@ -11,9 +11,16 @@ model users {
   name      String
   email     String   @unique
   password  String
+  user_type UserType @default(STUDENT)
   createdAt DateTime @default(now())
   student Student?
+  administration Administration?
   kudos   StudentKudo[]
+}
+
+enum UserType {
+  STUDENT
+  ADMINISTRATION
 }
 
 enum Classification {
@@ -21,6 +28,12 @@ enum Classification {
   SOPHOMORE
   JUNIOR
   SENIOR
+}
+
+enum AdministrationTitle {
+  MR
+  MS
+  DR
 }
 
 model Student {
@@ -43,6 +56,21 @@ model Student {
   kudos  StudentKudo[]
 
   @@map("students")
+}
+
+model Administration {
+  id              Int                 @id @default(autoincrement())
+  user_id         Int                 @unique
+  occupation      String
+  company         String
+  phone_number    String
+  gender          String
+  summary         String              @db.Text
+  profile_pic_url String              @db.MediumText
+  title           AdministrationTitle
+  user            users               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("administrations")
 }
 
 model StudentKudo {

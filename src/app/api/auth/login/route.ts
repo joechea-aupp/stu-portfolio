@@ -69,7 +69,13 @@ export async function POST(request: Request) {
       id: true,
       name: true,
       password: true,
+      user_type: true,
       student: {
+        select: {
+          id: true,
+        },
+      },
+      administration: {
         select: {
           id: true,
         },
@@ -90,12 +96,16 @@ export async function POST(request: Request) {
     maxAge: getSessionTtlSeconds(),
   });
 
+  const hasProfile =
+    user.user_type === "ADMINISTRATION" ? Boolean(user.administration) : Boolean(user.student);
+
   return Response.json({
     authenticated: true,
     user: {
       id: user.id,
       name: user.name,
-      hasProfile: Boolean(user.student),
+      userType: user.user_type,
+      hasProfile,
     },
   });
 }
