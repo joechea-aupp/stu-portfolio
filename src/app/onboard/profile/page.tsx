@@ -13,6 +13,7 @@ interface DraftProfile {
   major: string;
   graduationYear?: string;
   year: AcademicYear;
+  availableForProject?: boolean;
   imageUrl: string;
   projects: TimelineItem[];
   achievements: TimelineItem[];
@@ -105,6 +106,7 @@ export default function OnboardProfilePage() {
         major: updated.major,
         graduationYear: updated.graduationYear,
         year: updated.year,
+        availableForProject: Boolean(updated.availableForProject),
         summary: updated.summary,
         imageUrl: updated.imageUrl,
         skills: updated.skills,

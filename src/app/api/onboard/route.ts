@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid payload." }, { status: 400 });
   }
 
-  const { userId, major, graduationYear, year, summary, imageUrl, skills, projects, achievements } = body as Record<string, unknown>;
+  const { userId, major, graduationYear, year, summary, imageUrl, skills, projects, achievements, availableForProject } = body as Record<string, unknown>;
 
   if (!userId || !major || !graduationYear || !year) {
     return Response.json({ error: "userId, major, graduationYear, and year are required." }, { status: 400 });
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         major: String(major),
         graduation_year: gradYearInt,
         classification: classificationKey,
+        available_for_project: Boolean(availableForProject),
         summary: typeof summary === "string" ? summary : null,
         image_url: typeof imageUrl === "string" ? imageUrl : null,
         skills: Array.isArray(skills) ? skills : [],

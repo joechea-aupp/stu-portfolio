@@ -28,6 +28,7 @@ model Student {
   major String
   graduation_year Int
   classification Classification
+  available_for_project Boolean @default(false)
   kudo_count Int @default(0)
   view_count Int @default(0)
   summary String? @db.Text

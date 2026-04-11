@@ -22,6 +22,7 @@ export default function OnboardPage() {
   const [major, setMajor] = useState("");
   const [graduationYear, setGraduationYear] = useState("");
   const [year, setYear] = useState<AcademicYear | "">("");
+  const [availableForProject, setAvailableForProject] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -52,6 +53,7 @@ export default function OnboardPage() {
       major,
       graduationYear,
       year,
+      availableForProject,
       imageUrl,
       projects: existing.projects ?? [],
       achievements: existing.achievements ?? [],
@@ -204,6 +206,23 @@ export default function OnboardPage() {
                   </select>
                   <ChevronIcon />
                 </div>
+              </div>
+
+              {/* Project availability */}
+              <div className="flex items-start gap-3 border-[2px] border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3">
+                <input
+                  id="availableForProject"
+                  type="checkbox"
+                  checked={availableForProject}
+                  onChange={(e) => setAvailableForProject(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 cursor-pointer accent-[var(--color-accent)]"
+                />
+                <label
+                  htmlFor="availableForProject"
+                  className="cursor-pointer text-xs text-[var(--color-text)]"
+                >
+                  Available for project opportunities
+                </label>
               </div>
 
               {/* Submit */}
