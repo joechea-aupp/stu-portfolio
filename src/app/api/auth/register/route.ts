@@ -1,17 +1,10 @@
 import { randomBytes, scryptSync } from "node:crypto";
 import { getPrismaClient } from "@/lib/prisma";
 
-const CLASSIFICATIONS = ["FRESHMAN", "SOPHOMORE", "JUNIOR", "SENIOR"] as const;
-
-type Classification = (typeof CLASSIFICATIONS)[number];
-
 interface RegisterPayload {
   name: string;
   email: string;
   password: string;
-  major: string;
-  graduationYear: number;
-  classification: Classification;
 }
 
 function hashPassword(password: string): string {
@@ -30,11 +23,8 @@ function validate(body: unknown): { ok: true; data: RegisterPayload } | { ok: fa
   const name = data.name?.trim();
   const email = data.email?.trim().toLowerCase();
   const password = data.password;
-  const major = data.major?.trim();
-  const graduationYear = data.graduationYear;
-  const classification = data.classification;
 
-  if (!name || !email || !password || !major) {
+  if (!name || !email || !password) {
     return { ok: false, error: "All fields are required." };
   }
 
@@ -46,28 +36,12 @@ function validate(body: unknown): { ok: true; data: RegisterPayload } | { ok: fa
     return { ok: false, error: "Password must be at least 8 characters." };
   }
 
-  if (
-    typeof graduationYear !== "number" ||
-    !Number.isInteger(graduationYear) ||
-    graduationYear < 2000 ||
-    graduationYear > 2100
-  ) {
-    return { ok: false, error: "Graduation year must be between 2000 and 2100." };
-  }
-
-  if (!classification || !CLASSIFICATIONS.includes(classification)) {
-    return { ok: false, error: "Please choose a valid classification." };
-  }
-
   return {
     ok: true,
     data: {
       name,
       email,
       password,
-      major,
-      graduationYear,
-      classification,
     },
   };
 }
@@ -98,7 +72,7 @@ export async function POST(request: Request) {
     return Response.json({ error: validation.error }, { status: 400 });
   }
 
-  const { name, email, password, major, graduationYear, classification } = validation.data;
+  const { name, email, password } = validation.data;
   const prisma = getPrismaClient();
 
   try {
@@ -107,28 +81,15 @@ export async function POST(request: Request) {
         name,
         email,
         password: hashPassword(password),
-        student: {
-          create: {
-            major,
-            graduation_year: graduationYear,
-            classification,
-          },
-        },
       },
       select: {
         id: true,
-        student: {
-          select: {
-            id: true,
-          },
-        },
       },
     });
 
     return Response.json(
       {
         userId: created.id,
-        studentId: created.student?.id ?? null,
       },
       { status: 201 },
     );

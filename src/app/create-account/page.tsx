@@ -4,23 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-const CLASSIFICATIONS = [
-  { value: "FRESHMAN", label: "Freshman" },
-  { value: "SOPHOMORE", label: "Sophomore" },
-  { value: "JUNIOR", label: "Junior" },
-  { value: "SENIOR", label: "Senior" },
-] as const;
-
-type Classification = (typeof CLASSIFICATIONS)[number]["value"];
-
 export default function CreateAccountPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [major, setMajor] = useState("");
-  const [graduationYear, setGraduationYear] = useState("");
-  const [classification, setClassification] = useState<Classification | "">("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,9 +27,6 @@ export default function CreateAccountPage() {
           name,
           email,
           password,
-          major,
-          graduationYear: Number(graduationYear),
-          classification,
         }),
       });
 
@@ -68,10 +53,10 @@ export default function CreateAccountPage() {
         <div className="bg-[var(--color-brand)] px-8 py-6">
           <p className="text-[9px] uppercase tracking-[0.16em] text-white/70">StudentHub</p>
           <h1 className="mt-2 font-heading text-3xl uppercase leading-tight text-white">
-            Create your account
+            Create your account KK
           </h1>
           <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-white/75">
-            Create your user and student profile to get featured.
+            Create your account first, then finish your student profile in onboarding.
           </p>
         </div>
 
@@ -114,54 +99,6 @@ export default function CreateAccountPage() {
               placeholder="At least 8 characters"
             />
           </Field>
-
-          <Field label="Major" htmlFor="major">
-            <input
-              id="major"
-              type="text"
-              required
-              value={major}
-              onChange={(e) => setMajor(e.target.value)}
-              className="w-full border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
-              placeholder="Computer Science"
-            />
-          </Field>
-
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Field label="Graduation year" htmlFor="graduationYear">
-              <input
-                id="graduationYear"
-                type="number"
-                inputMode="numeric"
-                min={2000}
-                max={2100}
-                required
-                value={graduationYear}
-                onChange={(e) => setGraduationYear(e.target.value)}
-                className="w-full border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
-                placeholder="2028"
-              />
-            </Field>
-
-            <Field label="Classification" htmlFor="classification">
-              <select
-                id="classification"
-                required
-                value={classification}
-                onChange={(e) => setClassification(e.target.value as Classification)}
-                className="w-full border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
-              >
-                <option value="" disabled>
-                  Select one
-                </option>
-                {CLASSIFICATIONS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
 
           {error ? (
             <p className="border border-red-400 bg-red-100 px-3 py-2 text-sm text-red-700">{error}</p>

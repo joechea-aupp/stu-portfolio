@@ -10,6 +10,7 @@ import { DRAFT_KEY } from "@/app/onboard/draft";
 interface DraftProfile {
   name: string;
   major: string;
+  graduationYear?: string;
   year: AcademicYear;
   imageUrl: string;
   projects: TimelineItem[];
@@ -123,7 +124,9 @@ export default function OnboardProfilePage() {
           <div>
             <p className="font-heading text-xl uppercase text-[var(--color-text)] leading-tight">{draft.name}</p>
             <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              {draft.major} · {draft.year}
+              {draft.major}
+              {draft.graduationYear ? ` · ${draft.graduationYear}` : ""}
+              {` · ${draft.year}`}
             </p>
           </div>
         </div>

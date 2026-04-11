@@ -20,6 +20,7 @@ export default function OnboardPage() {
   const [imageBase64, setImageBase64] = useState<string>("");
   const [name, setName] = useState("");
   const [major, setMajor] = useState("");
+  const [graduationYear, setGraduationYear] = useState("");
   const [year, setYear] = useState<AcademicYear | "">("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,6 +40,7 @@ export default function OnboardPage() {
       ...existing,
       name,
       major,
+      graduationYear,
       year,
       imageUrl: imageBase64,
       projects: existing.projects ?? [],
@@ -167,6 +169,28 @@ export default function OnboardPage() {
                   placeholder="e.g. Computer Science"
                   value={major}
                   onChange={(e) => setMajor(e.target.value)}
+                  className="border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/50 outline-none focus:border-[var(--color-accent)] transition"
+                />
+              </div>
+
+              {/* Graduation year */}
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="graduationYear"
+                  className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]"
+                >
+                  Graduation year
+                </label>
+                <input
+                  id="graduationYear"
+                  type="number"
+                  inputMode="numeric"
+                  min={2000}
+                  max={2100}
+                  required
+                  placeholder="e.g. 2028"
+                  value={graduationYear}
+                  onChange={(e) => setGraduationYear(e.target.value)}
                   className="border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/50 outline-none focus:border-[var(--color-accent)] transition"
                 />
               </div>
