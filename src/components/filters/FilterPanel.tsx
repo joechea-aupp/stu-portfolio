@@ -6,6 +6,7 @@ interface FilterPanelProps {
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;
+  isLoading?: boolean;
 }
 
 const sectionLabelClass =
@@ -19,23 +20,34 @@ export function FilterPanel({
   onToggleMajor,
   onAvailabilityChange,
   onReset,
+  isLoading = false,
 }: FilterPanelProps) {
   return (
     <div className="space-y-6">
       <section>
         <h3 className={sectionLabelClass}>Major</h3>
         <div className="space-y-2 max-h-44 overflow-auto pr-1">
-          {majorOptions.map((major) => (
-            <label key={major} className={itemLabelClass}>
-              <input
-                type="checkbox"
-                checked={filters.majors.includes(major)}
-                onChange={() => onToggleMajor(major)}
-                className="h-4 w-4 rounded-none border border-[var(--color-border-strong)] accent-[var(--color-accent)]"
-              />
-              {major}
-            </label>
-          ))}
+          {isLoading
+            ? Array.from({ length: 5 }, (_, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-pulse rounded-sm bg-[var(--color-border)]" />
+                  <div
+                    className="h-3 animate-pulse rounded bg-[var(--color-border)]"
+                    style={{ width: `${60 + (i % 3) * 15}%` }}
+                  />
+                </div>
+              ))
+            : majorOptions.map((major) => (
+                <label key={major} className={itemLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={filters.majors.includes(major)}
+                    onChange={() => onToggleMajor(major)}
+                    className="h-4 w-4 rounded-none border border-[var(--color-border-strong)] accent-[var(--color-accent)]"
+                  />
+                  {major}
+                </label>
+              ))}
         </div>
       </section>
 

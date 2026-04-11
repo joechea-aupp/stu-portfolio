@@ -246,6 +246,7 @@ export function DirectoryApp() {
           setFilters(initialFilters);
           setPage(1);
         }}
+        isLoading={isLoading}
       />
 
       <main className="w-full px-4 pb-6 sm:px-6 lg:px-8">
@@ -339,6 +340,7 @@ export function DirectoryApp() {
           setFilters(initialFilters);
           setPage(1);
         }}
+        isLoading={isLoading}
       />
     </PageLayout>
   );

@@ -10,6 +10,7 @@ interface MobileFilterDrawerProps {
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;
+  isLoading?: boolean;
 }
 
 export function MobileFilterDrawer({ isOpen, onClose, ...panelProps }: MobileFilterDrawerProps) {
