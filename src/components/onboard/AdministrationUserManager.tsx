@@ -3,15 +3,34 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type ManagedUserType = "STUDENT" | "ADMINISTRATION";
-type AdministrationRole = "ADMIN_SUPER" | "ADMIN_MANAGER" | "ADMIN_STAFF";
+
+interface ManagedRole {
+  id: number;
+  name: string;
+}
+
+interface ManagedPermission {
+  id: number;
+  key: string;
+  label: string;
+  description: string | null;
+}
+
+interface RoleWithPermissions {
+  id: number;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+  permissions: ManagedPermission[];
+}
 
 interface ManagedUser {
   id: number;
   name: string;
   email: string;
   userType: ManagedUserType;
-  administrationRole: AdministrationRole | null;
-  canAssignRoles: boolean;
+  roles: ManagedRole[];
+  permissionKeys: string[];
   isActive: boolean;
   hasProfile: boolean;
   createdAt: string;
@@ -20,8 +39,10 @@ interface ManagedUser {
 interface ApiPayload {
   users?: ManagedUser[];
   updated?: ManagedUser;
+  roles?: RoleWithPermissions[];
+  permissions?: ManagedPermission[];
   currentUserId?: number;
-  currentUserCanAssignRoles?: boolean;
+  currentUserPermissions?: string[];
   error?: string;
 }
 
@@ -29,8 +50,7 @@ interface EditDraft {
   name: string;
   email: string;
   userType: ManagedUserType;
-  administrationRole: AdministrationRole;
-  canAssignRoles: boolean;
+  roleId: number | null;
 }
 
 interface PasswordResetDraft {
@@ -44,26 +64,44 @@ interface AdministrationUserManagerProps {
 
 export function AdministrationUserManager({ className }: AdministrationUserManagerProps) {
   const USERS_PER_PAGE = 8;
+
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
+  const [permissions, setPermissions] = useState<ManagedPermission[]>([]);
+
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [currentUserCanAssignRoles, setCurrentUserCanAssignRoles] = useState(false);
+  const [currentUserPermissions, setCurrentUserPermissions] = useState<string[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<number | null>(null);
+
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
+
   const [resettingUserId, setResettingUserId] = useState<number | null>(null);
   const [passwordResetDraft, setPasswordResetDraft] = useState<PasswordResetDraft | null>(null);
   const [passwordResetError, setPasswordResetError] = useState<string | null>(null);
+
+  const [creatingRole, setCreatingRole] = useState(false);
+  const [roleDraftName, setRoleDraftName] = useState("");
+  const [roleDraftDescription, setRoleDraftDescription] = useState("");
+  const [updatingRoleId, setUpdatingRoleId] = useState<number | null>(null);
+
   const [feedback, setFeedback] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const canManageUsers = currentUserPermissions.includes("users.manage");
+  const canCreateRoles = currentUserPermissions.includes("roles.create");
+  const canUpdateRoles = currentUserPermissions.includes("roles.update");
+  const canAssignRoles = currentUserPermissions.includes("roles.assign");
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const sortedUsers = useMemo(
     () => users.slice().sort((a, b) => Number(new Date(b.createdAt)) - Number(new Date(a.createdAt))),
     [users],
   );
-
-  const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const filteredUsers = useMemo(() => {
     if (!normalizedSearch) {
@@ -76,8 +114,8 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
         user.name,
         user.email,
         user.userType,
-        user.administrationRole ?? "",
-        user.canAssignRoles ? "can assign roles" : "cannot assign roles",
+        user.roles.map((role) => role.name).join(" "),
+        user.permissionKeys.join(" "),
         user.isActive ? "enabled" : "disabled",
       ]
         .join(" ")
@@ -118,17 +156,24 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       if (!response.ok) {
         setFeedback(payload.error ?? "Unable to load users.");
         setUsers([]);
+        setRoles([]);
+        setPermissions([]);
         return;
       }
 
       setUsers(payload.users ?? []);
-      setPage(1);
+      setRoles(payload.roles ?? []);
+      setPermissions(payload.permissions ?? []);
       setCurrentUserId(typeof payload.currentUserId === "number" ? payload.currentUserId : null);
-      setCurrentUserCanAssignRoles(Boolean(payload.currentUserCanAssignRoles));
+      setCurrentUserPermissions(payload.currentUserPermissions ?? []);
+      setPage(1);
     } catch {
       setFeedback("Unable to load users.");
       setUsers([]);
-      setCurrentUserCanAssignRoles(false);
+      setRoles([]);
+      setPermissions([]);
+      setCurrentUserId(null);
+      setCurrentUserPermissions([]);
     } finally {
       setLoading(false);
     }
@@ -142,10 +187,10 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
     setUsers((current) => current.map((entry) => (entry.id === updatedUser.id ? updatedUser : entry)));
   }
 
-  async function runAction(input: Record<string, unknown>): Promise<boolean> {
+  async function runUserAction(input: Record<string, unknown>): Promise<ManagedUser | null> {
     const targetId = typeof input.userId === "number" ? input.userId : null;
     if (!targetId) {
-      return false;
+      return null;
     }
 
     setBusyUserId(targetId);
@@ -164,7 +209,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
 
       if (!response.ok) {
         setFeedback(payload.error ?? "Request failed.");
-        return false;
+        return null;
       }
 
       if (payload.updated) {
@@ -172,12 +217,94 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       }
 
       setFeedback("Update completed.");
-      return true;
+      return payload.updated ?? null;
     } catch {
       setFeedback("Request failed.");
-      return false;
+      return null;
     } finally {
       setBusyUserId(null);
+    }
+  }
+
+  async function createRole() {
+    if (!canCreateRoles) {
+      setFeedback("You do not have permission to create roles.");
+      return;
+    }
+
+    const name = roleDraftName.trim();
+    const description = roleDraftDescription.trim();
+
+    if (!name) {
+      setFeedback("Role name is required.");
+      return;
+    }
+
+    setCreatingRole(true);
+    setFeedback(null);
+
+    try {
+      const response = await fetch("/api/administration/roles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, description }),
+      });
+      const payload = (await response.json()) as ApiPayload;
+
+      if (!response.ok) {
+        setFeedback(payload.error ?? "Unable to create role.");
+        return;
+      }
+
+      setRoleDraftName("");
+      setRoleDraftDescription("");
+      setRoles(payload.roles ?? []);
+      setFeedback("Role created.");
+      void loadUsers();
+    } catch {
+      setFeedback("Unable to create role.");
+    } finally {
+      setCreatingRole(false);
+    }
+  }
+
+  async function toggleRolePermission(roleId: number, permissionId: number, isAttached: boolean) {
+    if (!canUpdateRoles) {
+      setFeedback("You do not have permission to update role permissions.");
+      return;
+    }
+
+    setUpdatingRoleId(roleId);
+    setFeedback(null);
+
+    try {
+      const response = await fetch("/api/administration/roles", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: isAttached ? "detachPermission" : "attachPermission",
+          roleId,
+          permissionId,
+        }),
+      });
+      const payload = (await response.json()) as ApiPayload;
+
+      if (!response.ok) {
+        setFeedback(payload.error ?? "Unable to update role permissions.");
+        return;
+      }
+
+      setRoles(payload.roles ?? []);
+      setFeedback("Role permissions updated.");
+      void loadUsers();
+    } catch {
+      setFeedback("Unable to update role permissions.");
+    } finally {
+      setUpdatingRoleId(null);
     }
   }
 
@@ -185,13 +312,13 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
     setResettingUserId(null);
     setPasswordResetDraft(null);
     setPasswordResetError(null);
+
     setEditingUserId(user.id);
     setEditDraft({
       name: user.name,
       email: user.email,
       userType: user.userType,
-      administrationRole: user.administrationRole ?? "ADMIN_STAFF",
-      canAssignRoles: user.canAssignRoles,
+      roleId: user.roles[0]?.id ?? null,
     });
   }
 
@@ -222,20 +349,28 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       return;
     }
 
-    const didUpdate = await runAction({
+    const updated = await runUserAction({
       userId,
       action: "edit",
       name: editDraft.name,
       email: editDraft.email,
       userType: editDraft.userType,
-      administrationRole:
-        editDraft.userType === "ADMINISTRATION" ? editDraft.administrationRole : undefined,
-      canAssignRoles: editDraft.userType === "ADMINISTRATION" ? editDraft.canAssignRoles : undefined,
     });
 
-    if (didUpdate) {
-      cancelEdit();
+    if (!updated) {
+      return;
     }
+
+    if (editDraft.userType === "ADMINISTRATION" && canAssignRoles) {
+      await runUserAction({
+        userId,
+        action: "assignRole",
+        roleId: editDraft.roleId,
+      });
+    }
+
+    cancelEdit();
+    void loadUsers();
   }
 
   async function submitPasswordReset() {
@@ -263,13 +398,13 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
 
     setPasswordResetError(null);
 
-    const didUpdate = await runAction({
+    const updated = await runUserAction({
       userId: resettingUserId,
       action: "resetPassword",
       newPassword: password,
     });
 
-    if (didUpdate) {
+    if (updated) {
       cancelResetPassword();
     }
   }
@@ -286,218 +421,288 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
   return (
     <>
       <section className={`${className ?? "mt-12"} border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6`}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-lg uppercase tracking-[0.08em] text-[var(--color-text)]">Users</h2>
-          <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-            Enable, disable, edit profile fields, and reset passwords.
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-heading text-lg uppercase tracking-[0.08em] text-[var(--color-text)]">Users & RBAC</h2>
+            <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+              Create roles, manage role permissions, and assign a role to a user.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadUsers()}
+            className="border border-[var(--color-border-strong)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
+          >
+            Refresh
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadUsers()}
-          className="border border-[var(--color-border-strong)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
-        >
-          Refresh
-        </button>
-      </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <label className="grid min-w-[240px] flex-1 max-w-md gap-1">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-            Search users
-          </span>
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-            placeholder="Search by id, name, email, type, or status"
-          />
-        </label>
+        <div className="mt-4 grid gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+          <h3 className="font-heading text-sm uppercase tracking-[0.08em] text-[var(--color-text)]">Roles</h3>
 
-        {normalizedSearch ? (
-          <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-            {filteredUsers.length} result{filteredUsers.length === 1 ? "" : "s"}
-          </p>
-        ) : null}
-      </div>
-
-      {feedback ? (
-        <p className="mt-4 border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-          {feedback}
-        </p>
-      ) : null}
-
-      {loading ? (
-        <UserTableSkeleton />
-      ) : sortedUsers.length === 0 ? (
-        <p className="mt-4 text-sm text-[var(--color-text-muted)]">No users found.</p>
-      ) : filteredUsers.length === 0 ? (
-        <p className="mt-4 text-sm text-[var(--color-text-muted)]">No users match your search.</p>
-      ) : (
-        <>
-          <div className="mt-4 overflow-x-auto border border-[var(--color-border)]">
-            <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
-              <thead className="bg-[var(--color-bg)]">
-                <tr>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">ID</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role permission</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedUsers.map((user) => {
-                  const isBusy = busyUserId === user.id;
-
-                  return (
-                    <tr key={user.id} className="border-t border-[var(--color-border)] align-top">
-                      <td className="px-3 py-2 text-[var(--color-text-muted)]">{user.id}</td>
-                      <td className="px-3 py-2 text-[var(--color-text)]">{user.name}</td>
-                      <td className="px-3 py-2">
-                        <button
-                          type="button"
-                          onClick={() => void copyEmail(user.email)}
-                          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold tracking-[0.04em] text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                          title="Click to copy email"
-                        >
-                          {user.email}
-                        </button>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
-                            user.userType === "ADMINISTRATION"
-                              ? "border-sky-200 bg-sky-50 text-sky-700"
-                              : "border-violet-200 bg-violet-50 text-violet-700"
-                          }`}
-                        >
-                          {user.userType}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        {user.userType === "ADMINISTRATION" ? (
-                          <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-indigo-700">
-                            {user.administrationRole ?? "ADMIN_STAFF"}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {user.userType === "ADMINISTRATION" ? (
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
-                              user.canAssignRoles
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-slate-200 bg-slate-50 text-slate-600"
-                            }`}
-                          >
-                            {user.canAssignRoles ? "Can assign roles" : "No role assignment"}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
-                            user.isActive
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-rose-200 bg-rose-50 text-rose-700"
-                          }`}
-                        >
-                          {user.isActive ? "Enabled" : "Disabled"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
-                            user.hasProfile
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          {user.hasProfile ? "Complete" : "Missing"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-[var(--color-text-muted)]">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            disabled={isBusy || busyUserId !== null || resettingUserId !== null}
-                            onClick={() => startEdit(user)}
-                            className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isBusy || (user.isActive && user.id === currentUserId)}
-                            onClick={() =>
-                              void runAction({
-                                userId: user.id,
-                                action: user.isActive ? "disable" : "enable",
-                              })
-                            }
-                            className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
-                          >
-                            {user.isActive ? "Disable" : "Enable"}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isBusy || busyUserId !== null || editingUserId !== null}
-                            onClick={() => startResetPassword(user.id)}
-                            className="border border-[var(--color-accent)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white disabled:opacity-50"
-                          >
-                            Reset password
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <input
+              type="text"
+              value={roleDraftName}
+              onChange={(event) => setRoleDraftName(event.target.value)}
+              placeholder="Role name (e.g. PROJECT_REVIEWER)"
+              className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+            />
+            <input
+              type="text"
+              value={roleDraftDescription}
+              onChange={(event) => setRoleDraftDescription(event.target.value)}
+              placeholder="Role description (optional)"
+              className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+            />
+            <button
+              type="button"
+              disabled={creatingRole || !canCreateRoles}
+              onClick={() => void createRole()}
+              className="border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-white hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)] disabled:opacity-40"
+            >
+              {creatingRole ? "Creating..." : "Create role"}
+            </button>
           </div>
 
-          {pageCount > 1 ? (
-            <div className="mt-3 flex items-center justify-between border-t border-[var(--color-border)] pb-1 pt-4">
-              <button
-                type="button"
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                disabled={page === 1}
-                className="border border-[var(--color-border-strong)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white disabled:pointer-events-none disabled:opacity-30"
-              >
-                ← Prev
-              </button>
+          <div className="grid gap-3">
+            {roles.length === 0 ? (
+              <p className="text-sm text-[var(--color-text-muted)]">No roles found.</p>
+            ) : (
+              roles.map((role) => {
+                const attached = new Set(role.permissions.map((permission) => permission.id));
 
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                Page {page} of {pageCount}
-              </span>
+                return (
+                  <div key={role.id} className="border border-[var(--color-border)] bg-white p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text)]">{role.name}</p>
+                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{role.description || "No description."}</p>
+                      </div>
+                      <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                        {role.isSystem ? "System role" : "Custom role"}
+                      </span>
+                    </div>
 
-              <button
-                type="button"
-                onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
-                disabled={page === pageCount}
-                className="border border-[var(--color-border-strong)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white disabled:pointer-events-none disabled:opacity-30"
-              >
-                Next →
-              </button>
-            </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {permissions.map((permission) => {
+                        const isAttached = attached.has(permission.id);
+                        const isUpdating = updatingRoleId === role.id;
+
+                        return (
+                          <label key={permission.id} className="flex items-center gap-2 border border-[var(--color-border)] px-2.5 py-2">
+                            <input
+                              type="checkbox"
+                              checked={isAttached}
+                              onChange={() => void toggleRolePermission(role.id, permission.id, isAttached)}
+                              disabled={!canUpdateRoles || isUpdating}
+                              className="h-4 w-4"
+                            />
+                            <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                              {permission.key}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {!canCreateRoles || !canUpdateRoles ? (
+            <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+              Your account permissions may limit role creation or role permission updates.
+            </p>
           ) : null}
-        </>
-      )}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <label className="grid min-w-[240px] max-w-md flex-1 gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Search users</span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+              placeholder="Search by id, name, email, type, role, or permission"
+            />
+          </label>
+
+          {normalizedSearch ? (
+            <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+              {filteredUsers.length} result{filteredUsers.length === 1 ? "" : "s"}
+            </p>
+          ) : null}
+        </div>
+
+        {feedback ? (
+          <p className="mt-4 border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+            {feedback}
+          </p>
+        ) : null}
+
+        {loading ? (
+          <UserTableSkeleton />
+        ) : sortedUsers.length === 0 ? (
+          <p className="mt-4 text-sm text-[var(--color-text-muted)]">No users found.</p>
+        ) : filteredUsers.length === 0 ? (
+          <p className="mt-4 text-sm text-[var(--color-text-muted)]">No users match your search.</p>
+        ) : (
+          <>
+            <div className="mt-4 overflow-x-auto border border-[var(--color-border)]">
+              <table className="w-full min-w-[1150px] border-collapse text-left text-sm">
+                <thead className="bg-[var(--color-bg)]">
+                  <tr>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">ID</th>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Assigned role</th>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Permissions</th>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
+                    <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedUsers.map((user) => {
+                    const isBusy = busyUserId === user.id;
+                    const roleName = user.roles[0]?.name ?? "-";
+
+                    return (
+                      <tr key={user.id} className="border-t border-[var(--color-border)] align-top">
+                        <td className="px-3 py-2 text-[var(--color-text-muted)]">{user.id}</td>
+                        <td className="px-3 py-2 text-[var(--color-text)]">{user.name}</td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => void copyEmail(user.email)}
+                            className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold tracking-[0.04em] text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                            title="Click to copy email"
+                          >
+                            {user.email}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
+                              user.userType === "ADMINISTRATION"
+                                ? "border-sky-200 bg-sky-50 text-sky-700"
+                                : "border-violet-200 bg-violet-50 text-violet-700"
+                            }`}
+                          >
+                            {user.userType}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-indigo-700">
+                            {roleName}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          {user.permissionKeys.length > 0 ? (
+                            <span className="text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                              {user.permissionKeys.join(", ")}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">-</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
+                              user.isActive
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-rose-200 bg-rose-50 text-rose-700"
+                            }`}
+                          >
+                            {user.isActive ? "Enabled" : "Disabled"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
+                              user.hasProfile
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-amber-200 bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {user.hasProfile ? "Complete" : "Missing"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-[var(--color-text-muted)]">
+                          {new Date(user.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={!canManageUsers || isBusy || busyUserId !== null || resettingUserId !== null}
+                              onClick={() => startEdit(user)}
+                              className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!canManageUsers || isBusy || (user.isActive && user.id === currentUserId)}
+                              onClick={() =>
+                                void runUserAction({
+                                  userId: user.id,
+                                  action: user.isActive ? "disable" : "enable",
+                                })
+                              }
+                              className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
+                            >
+                              {user.isActive ? "Disable" : "Enable"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!canManageUsers || isBusy || busyUserId !== null || editingUserId !== null}
+                              onClick={() => startResetPassword(user.id)}
+                              className="border border-[var(--color-accent)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white disabled:opacity-50"
+                            >
+                              Reset password
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {pageCount > 1 ? (
+              <div className="mt-3 flex items-center justify-between border-t border-[var(--color-border)] pb-1 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={page === 1}
+                  className="border border-[var(--color-border-strong)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white disabled:pointer-events-none disabled:opacity-30"
+                >
+                  ← Prev
+                </button>
+
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  Page {page} of {pageCount}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                  disabled={page === pageCount}
+                  className="border border-[var(--color-border-strong)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white disabled:pointer-events-none disabled:opacity-30"
+                >
+                  Next →
+                </button>
+              </div>
+            ) : null}
+          </>
+        )}
       </section>
 
       {editingUserId !== null && editDraft ? (
@@ -515,7 +720,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
               <div>
                 <h3 className="font-heading text-base uppercase tracking-[0.08em] text-[var(--color-text)]">Edit user</h3>
                 <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Update name, email, type, and administration role permissions.
+                  Update name, email, type, and role assignment.
                 </p>
               </div>
               <button
@@ -589,57 +794,36 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
               </label>
 
               {editDraft.userType === "ADMINISTRATION" ? (
-                <>
-                  <label className="grid gap-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Administration role</span>
-                    <select
-                      value={editDraft.administrationRole}
-                      onChange={(e) =>
-                        setEditDraft((current) =>
-                          current
-                            ? {
-                                ...current,
-                                administrationRole: e.target.value as AdministrationRole,
-                              }
-                            : current,
-                        )
-                      }
-                      disabled={!currentUserCanAssignRoles}
-                      className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] disabled:opacity-60"
-                    >
-                      <option value="ADMIN_SUPER">ADMIN_SUPER</option>
-                      <option value="ADMIN_MANAGER">ADMIN_MANAGER</option>
-                      <option value="ADMIN_STAFF">ADMIN_STAFF</option>
-                    </select>
-                  </label>
-
-                  <label className="flex items-center gap-2 border border-[var(--color-border)] bg-white px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={editDraft.canAssignRoles}
-                      onChange={(e) =>
-                        setEditDraft((current) =>
-                          current
-                            ? {
-                                ...current,
-                                canAssignRoles: e.target.checked,
-                              }
-                            : current,
-                        )
-                      }
-                      disabled={!currentUserCanAssignRoles}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                      Can assign roles to administration accounts
-                    </span>
-                  </label>
-                </>
+                <label className="grid gap-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Assigned role</span>
+                  <select
+                    value={editDraft.roleId ?? ""}
+                    onChange={(e) =>
+                      setEditDraft((current) =>
+                        current
+                          ? {
+                              ...current,
+                              roleId: e.target.value ? Number(e.target.value) : null,
+                            }
+                          : current,
+                      )
+                    }
+                    disabled={!canAssignRoles}
+                    className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] disabled:opacity-60"
+                  >
+                    <option value="">No role assigned</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               ) : null}
 
-              {!currentUserCanAssignRoles ? (
+              {!canAssignRoles ? (
                 <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-                  Your account cannot assign administration roles or role permissions.
+                  Your account cannot assign roles.
                 </p>
               ) : null}
             </div>
@@ -779,8 +963,8 @@ function UserTableSkeleton() {
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
-            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
-            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role permission</th>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Assigned role</th>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Permissions</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
@@ -790,36 +974,16 @@ function UserTableSkeleton() {
         <tbody>
           {rows.map((_, index) => (
             <tr key={index} className="border-t border-[var(--color-border)]">
-              <td className="px-3 py-3">
-                <div className="h-3 w-6 animate-pulse bg-[var(--color-border)]" />
-              </td>
-              <td className="px-3 py-3">
-                <div className="h-3 w-28 animate-pulse bg-[var(--color-border)]" />
-              </td>
-              <td className="px-3 py-3">
-                <div className="h-3 w-40 animate-pulse bg-[var(--color-border)]" />
-              </td>
-              <td className="px-3 py-3">
-                <div className="h-3 w-24 animate-pulse bg-[var(--color-border)]" />
-              </td>
-              <td className="px-3 py-3">
-                <div className="h-3 w-24 animate-pulse bg-[var(--color-border)]" />
-              </td>
-              <td className="px-3 py-3">
-                <div className="h-3 w-28 animate-pulse bg-[var(--color-border)]" />
-              </td>
-              <td className="px-3 py-3">
-                <div className="h-3 w-16 animate-pulse bg-[var(--color-border)]" />
-              </td>
-              <td className="px-3 py-3">
-                <div className="h-3 w-20 animate-pulse bg-[var(--color-border)]" />
-              </td>
-              <td className="px-3 py-3">
-                <div className="h-3 w-20 animate-pulse bg-[var(--color-border)]" />
-              </td>
-              <td className="px-3 py-3">
-                <div className="h-3 w-36 animate-pulse bg-[var(--color-border)]" />
-              </td>
+              <td className="px-3 py-3"><div className="h-3 w-6 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-28 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-40 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-24 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-28 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-40 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-16 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-20 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-20 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-36 animate-pulse bg-[var(--color-border)]" /></td>
             </tr>
           ))}
         </tbody>

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSessionToken, getSessionTtlSeconds, SESSION_COOKIE_NAME } from "@/lib/auth-session";
 import { hashPassword } from "@/lib/password";
+import { ensureRbacBootstrap } from "@/lib/rbac-bootstrap";
 
 interface RegisterPayload {
   name: string;
@@ -80,6 +81,8 @@ function parseInteger(value: unknown): number {
 }
 
 export async function POST(request: Request) {
+  await ensureRbacBootstrap();
+
   let body: unknown;
 
   try {
@@ -117,14 +120,22 @@ export async function POST(request: Request) {
         WHERE user_type = 'ADMINISTRATION'
       `;
       const adminCount = adminCountRows.length > 0 ? parseInteger(adminCountRows[0].total) : 0;
-      const administrationRole = adminCount <= 1 ? "ADMIN_SUPER" : "ADMIN_STAFF";
-      const canAssignRoles = adminCount <= 1;
+      const defaultRoleName = adminCount <= 1 ? "ADMIN_SUPER" : "ADMIN_STAFF";
+
+      const roleRows = await prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT id
+        FROM roles
+        WHERE name = ${defaultRoleName}
+        LIMIT 1
+      `;
+
+      if (roleRows.length === 0) {
+        return Response.json({ error: "Default administration role is not configured." }, { status: 500 });
+      }
 
       await prisma.$executeRaw`
-        UPDATE users
-        SET administration_role = ${administrationRole},
-            can_assign_roles = ${canAssignRoles}
-        WHERE id = ${created.id}
+        INSERT INTO user_roles (user_id, role_id)
+        VALUES (${created.id}, ${roleRows[0].id})
       `;
     }
 
