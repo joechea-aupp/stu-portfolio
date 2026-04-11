@@ -53,7 +53,7 @@ export default function CreateAccountPage() {
         <div className="bg-[var(--color-brand)] px-8 py-6">
           <p className="text-[9px] uppercase tracking-[0.16em] text-white/70">StudentHub</p>
           <h1 className="mt-2 font-heading text-3xl uppercase leading-tight text-white">
-            Create your account KK
+            Create your account
           </h1>
           <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-white/75">
             Create your account first, then finish your student profile in onboarding.
