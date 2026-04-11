@@ -173,10 +173,19 @@ export function TopNav() {
                 onClick={() => setAccountMenuOpen((open) => !open)}
                 aria-expanded={accountMenuOpen}
                 aria-haspopup="menu"
+                aria-label="Open account menu"
                 className="inline-flex h-9 items-center gap-2 border border-[var(--color-border)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               >
                 <span className="hidden sm:inline">{currentUser.name}</span>
-                <span>Account</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="h-4 w-4 fill-none stroke-current stroke-[1.8]"
+                >
+                  <circle cx="12" cy="8" r="3.25" />
+                  <path d="M5.5 19c1.9-3.3 4.1-4.95 6.5-4.95S16.6 15.7 18.5 19" strokeLinecap="round" />
+                </svg>
+                <span className="sr-only">Account</span>
               </button>
 
               {accountMenuOpen ? (
