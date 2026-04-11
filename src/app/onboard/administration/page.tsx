@@ -26,7 +26,7 @@ interface EditState {
   profilePicUrl: string;
 }
 
-type AdministrationTab = "profile" | "users";
+type AdministrationTab = "profile" | "users" | "rbac";
 
 const TITLES: Array<{ value: AdministrationTitle; label: string }> = [
   { value: "MR", label: "Mr." },
@@ -254,7 +254,7 @@ export default function AdministrationOnboardPage() {
     <PageLayout
       width="md"
       className="py-10"
-      containerClassName={activeTab === "users" ? "max-w-6xl" : "max-w-2xl"}
+      containerClassName={activeTab === "profile" ? "max-w-2xl" : "max-w-6xl"}
     >
       <Link
         href="/"
@@ -288,6 +288,18 @@ export default function AdministrationOnboardPage() {
             aria-pressed={activeTab === "users"}
           >
             Users
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("rbac")}
+            className={`min-w-24 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+              activeTab === "rbac"
+                ? "bg-[var(--color-accent)] text-white"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            }`}
+            aria-pressed={activeTab === "rbac"}
+          >
+            RBAC
           </button>
         </div>
       </div>
@@ -487,8 +499,10 @@ export default function AdministrationOnboardPage() {
             </button>
           </form>
         </>
+      ) : activeTab === "users" ? (
+        <AdministrationUserManager className="mt-6" tab="users" />
       ) : (
-        <AdministrationUserManager className="mt-6" />
+        <AdministrationUserManager className="mt-6" tab="rbac" />
       )}
     </PageLayout>
   );

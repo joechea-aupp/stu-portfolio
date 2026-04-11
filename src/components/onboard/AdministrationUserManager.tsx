@@ -60,9 +60,10 @@ interface PasswordResetDraft {
 
 interface AdministrationUserManagerProps {
   className?: string;
+  tab: "users" | "rbac";
 }
 
-export function AdministrationUserManager({ className }: AdministrationUserManagerProps) {
+export function AdministrationUserManager({ className, tab }: AdministrationUserManagerProps) {
   const USERS_PER_PAGE = 8;
 
   const [users, setUsers] = useState<ManagedUser[]>([]);
@@ -423,9 +424,13 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       <section className={`${className ?? "mt-12"} border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-heading text-lg uppercase tracking-[0.08em] text-[var(--color-text)]">Users & RBAC</h2>
+            <h2 className="font-heading text-lg uppercase tracking-[0.08em] text-[var(--color-text)]">
+              {tab === "users" ? "Users" : "RBAC"}
+            </h2>
             <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-              Create roles, manage role permissions, and assign a role to a user.
+              {tab === "users"
+                ? "Manage user accounts and assign a role to each administration user."
+                : "Create roles and manage the permissions attached to each role."}
             </p>
           </div>
           <button
@@ -437,87 +442,90 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
           </button>
         </div>
 
-        <div className="mt-4 grid gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-          <h3 className="font-heading text-sm uppercase tracking-[0.08em] text-[var(--color-text)]">Roles</h3>
+        {tab === "rbac" ? (
+          <div className="mt-4 grid gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+            <h3 className="font-heading text-sm uppercase tracking-[0.08em] text-[var(--color-text)]">Roles</h3>
 
-          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <input
-              type="text"
-              value={roleDraftName}
-              onChange={(event) => setRoleDraftName(event.target.value)}
-              placeholder="Role name (e.g. PROJECT_REVIEWER)"
-              className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-            />
-            <input
-              type="text"
-              value={roleDraftDescription}
-              onChange={(event) => setRoleDraftDescription(event.target.value)}
-              placeholder="Role description (optional)"
-              className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-            />
-            <button
-              type="button"
-              disabled={creatingRole || !canCreateRoles}
-              onClick={() => void createRole()}
-              className="border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-white hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)] disabled:opacity-40"
-            >
-              {creatingRole ? "Creating..." : "Create role"}
-            </button>
-          </div>
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+              <input
+                type="text"
+                value={roleDraftName}
+                onChange={(event) => setRoleDraftName(event.target.value)}
+                placeholder="Role name (e.g. PROJECT_REVIEWER)"
+                className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+              />
+              <input
+                type="text"
+                value={roleDraftDescription}
+                onChange={(event) => setRoleDraftDescription(event.target.value)}
+                placeholder="Role description (optional)"
+                className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+              />
+              <button
+                type="button"
+                disabled={creatingRole || !canCreateRoles}
+                onClick={() => void createRole()}
+                className="border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-white hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)] disabled:opacity-40"
+              >
+                {creatingRole ? "Creating..." : "Create role"}
+              </button>
+            </div>
 
-          <div className="grid gap-3">
-            {roles.length === 0 ? (
-              <p className="text-sm text-[var(--color-text-muted)]">No roles found.</p>
-            ) : (
-              roles.map((role) => {
-                const attached = new Set(role.permissions.map((permission) => permission.id));
+            <div className="grid gap-3">
+              {roles.length === 0 ? (
+                <p className="text-sm text-[var(--color-text-muted)]">No roles found.</p>
+              ) : (
+                roles.map((role) => {
+                  const attached = new Set(role.permissions.map((permission) => permission.id));
 
-                return (
-                  <div key={role.id} className="border border-[var(--color-border)] bg-white p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text)]">{role.name}</p>
-                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{role.description || "No description."}</p>
+                  return (
+                    <div key={role.id} className="border border-[var(--color-border)] bg-white p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text)]">{role.name}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{role.description || "No description."}</p>
+                        </div>
+                        <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                          {role.isSystem ? "System role" : "Custom role"}
+                        </span>
                       </div>
-                      <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-                        {role.isSystem ? "System role" : "Custom role"}
-                      </span>
-                    </div>
 
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {permissions.map((permission) => {
-                        const isAttached = attached.has(permission.id);
-                        const isUpdating = updatingRoleId === role.id;
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {permissions.map((permission) => {
+                          const isAttached = attached.has(permission.id);
+                          const isUpdating = updatingRoleId === role.id;
 
-                        return (
-                          <label key={permission.id} className="flex items-center gap-2 border border-[var(--color-border)] px-2.5 py-2">
-                            <input
-                              type="checkbox"
-                              checked={isAttached}
-                              onChange={() => void toggleRolePermission(role.id, permission.id, isAttached)}
-                              disabled={!canUpdateRoles || isUpdating}
-                              className="h-4 w-4"
-                            />
-                            <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                              {permission.key}
-                            </span>
-                          </label>
-                        );
-                      })}
+                          return (
+                            <label key={permission.id} className="flex items-center gap-2 border border-[var(--color-border)] px-2.5 py-2">
+                              <input
+                                type="checkbox"
+                                checked={isAttached}
+                                onChange={() => void toggleRolePermission(role.id, permission.id, isAttached)}
+                                disabled={!canUpdateRoles || isUpdating}
+                                className="h-4 w-4"
+                              />
+                              <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                                {permission.key}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
+
+            {!canCreateRoles || !canUpdateRoles ? (
+              <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                Your account permissions may limit role creation or role permission updates.
+              </p>
+            ) : null}
           </div>
+        ) : null}
 
-          {!canCreateRoles || !canUpdateRoles ? (
-            <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-              Your account permissions may limit role creation or role permission updates.
-            </p>
-          ) : null}
-        </div>
-
+        {tab === "users" ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <label className="grid min-w-[240px] max-w-md flex-1 gap-1">
             <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Search users</span>
@@ -536,6 +544,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
             </p>
           ) : null}
         </div>
+        ) : null}
 
         {feedback ? (
           <p className="mt-4 border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
@@ -543,7 +552,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
           </p>
         ) : null}
 
-        {loading ? (
+        {tab === "users" ? (loading ? (
           <UserTableSkeleton />
         ) : sortedUsers.length === 0 ? (
           <p className="mt-4 text-sm text-[var(--color-text-muted)]">No users found.</p>
@@ -702,10 +711,10 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
               </div>
             ) : null}
           </>
-        )}
+        )) : null}
       </section>
 
-      {editingUserId !== null && editDraft ? (
+      {tab === "users" && editingUserId !== null && editDraft ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
           onClick={(event) => {
@@ -850,7 +859,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
         </div>
       ) : null}
 
-      {resettingUserId !== null && passwordResetDraft ? (
+      {tab === "users" && resettingUserId !== null && passwordResetDraft ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
           onClick={(event) => {
