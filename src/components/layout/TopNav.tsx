@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
@@ -13,10 +13,24 @@ const navItems = [
 
 const defaultTheme: ThemeName = "classic";
 
-export function TopNav() {
+export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }) {
   const pathname = usePathname();
   const [authLoading, setAuthLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ id: number; name: string } | null>(null);
+  const [wasLoggedIn, setWasLoggedIn] = useState(initialKnownSession);
+
+  useLayoutEffect(() => {
+    function syncKnownSession() {
+      setWasLoggedIn(window.localStorage.getItem("session-known") === "true");
+    }
+
+    syncKnownSession();
+    window.addEventListener("auth-state-changed", syncKnownSession);
+
+    return () => {
+      window.removeEventListener("auth-state-changed", syncKnownSession);
+    };
+  }, []);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [theme, setTheme] = useState<ThemeName>(() => {
@@ -97,12 +111,15 @@ export function TopNav() {
 
         if (payload.user?.id && payload.user?.name) {
           setCurrentUser({ id: payload.user.id, name: payload.user.name });
+          window.localStorage.setItem("session-known", "true");
         } else {
           setCurrentUser(null);
+          window.localStorage.setItem("session-known", "false");
         }
       } catch {
         if (isMounted) {
           setCurrentUser(null);
+          window.localStorage.setItem("session-known", "false");
         }
       } finally {
         if (isMounted) {
@@ -124,6 +141,8 @@ export function TopNav() {
         method: "POST",
       });
     } finally {
+      window.localStorage.setItem("session-known", "false");
+      window.dispatchEvent(new Event("auth-state-changed"));
       setAccountMenuOpen(false);
       setCurrentUser(null);
       window.location.href = "/";
@@ -164,7 +183,14 @@ export function TopNav() {
 
         <div className="ml-auto flex items-center gap-3">
           {authLoading ? (
-            <div className="h-9 w-28 animate-pulse bg-[var(--color-border)]" aria-hidden="true" />
+            wasLoggedIn ? (
+              <div className="h-9 w-28 animate-pulse bg-[var(--color-border)]" aria-hidden="true" />
+            ) : (
+              <>
+                <div className="hidden sm:block h-9 w-16 animate-pulse bg-[var(--color-border)]" aria-hidden="true" />
+                <div className="h-9 w-28 animate-pulse bg-[var(--color-border)]" aria-hidden="true" />
+              </>
+            )
           ) : currentUser ? (
             <div className="relative" ref={accountMenuRef}>
               <button

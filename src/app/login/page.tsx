@@ -38,6 +38,8 @@ export default function LoginPage() {
         return;
       }
 
+      window.localStorage.setItem("session-known", "true");
+      window.dispatchEvent(new Event("auth-state-changed"));
       router.push("/onboard/profile");
     } catch {
       setError("Something went wrong. Please try again.");

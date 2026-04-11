@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Oswald, Source_Sans_3 } from "next/font/google";
 import { AppShell } from "@/components/layout/AppShell";
+import { SESSION_COOKIE_NAME } from "@/lib/auth-session";
 import "./globals.css";
 
 const headingFont = Oswald({
@@ -18,18 +20,21 @@ export const metadata: Metadata = {
   description: "A bold portfolio directory interface for discovering student talent.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const initialKnownSession = Boolean(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+
   return (
     <html
       lang="en"
       className={`${headingFont.variable} ${bodyFont.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <AppShell>{children}</AppShell>
+        <AppShell initialKnownSession={initialKnownSession}>{children}</AppShell>
       </body>
     </html>
   );
