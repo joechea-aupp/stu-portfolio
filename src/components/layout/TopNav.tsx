@@ -69,6 +69,10 @@ export function TopNav() {
     let isMounted = true;
 
     async function loadSession() {
+      if (isMounted) {
+        setAuthLoading(true);
+      }
+
       try {
         const response = await fetch("/api/auth/session", {
           method: "GET",
@@ -112,7 +116,7 @@ export function TopNav() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [pathname]);
 
   async function handleLogout() {
     try {
