@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore, useState } from "react";
-import { students } from "@/data/students";
+import { useEffect, useMemo, useSyncExternalStore, useState } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import type { Student } from "@/types/student";
 
 const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
 const KUDOS_STORAGE_KEY = "portfolio-kudos";
+const DIRECTORY_STUDENTS_STORAGE_KEY = "directory-students";
 const LEADERBOARD_LIMIT = 10;
 
 type LeaderboardMetric = "verified" | "views" | "kudos";
@@ -17,6 +17,19 @@ interface LeaderboardRow {
   verifiedAchievements: number;
   views: number;
   kudos: number;
+}
+
+function subscribeDirectoryStudents(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("directory-students-updated", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("directory-students-updated", onStoreChange);
+  };
 }
 
 function subscribePortfolioViews(onStoreChange: () => void) {
@@ -65,6 +78,18 @@ function getServerSnapshot() {
   return "{}";
 }
 
+function getDirectoryStudentsSnapshot() {
+  if (typeof window === "undefined") {
+    return "[]";
+  }
+
+  return window.localStorage.getItem(DIRECTORY_STUDENTS_STORAGE_KEY) ?? "[]";
+}
+
+function getDirectoryStudentsServerSnapshot() {
+  return "[]";
+}
+
 function normalizeCountRecord(snapshot: string): Record<string, number> {
   try {
     const parsed = JSON.parse(snapshot);
@@ -81,6 +106,47 @@ function normalizeCountRecord(snapshot: string): Record<string, number> {
     return normalized;
   } catch {
     return {};
+  }
+}
+
+function normalizeStudent(candidate: unknown): Student | null {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+
+  const value = candidate as Partial<Student>;
+
+  if (
+    typeof value.id !== "string" ||
+    typeof value.name !== "string" ||
+    typeof value.major !== "string" ||
+    typeof value.year !== "string" ||
+    !Array.isArray(value.skills) ||
+    typeof value.available !== "boolean" ||
+    typeof value.gpa !== "number" ||
+    !Array.isArray(value.projects) ||
+    !Array.isArray(value.achievements) ||
+    typeof value.summary !== "string" ||
+    typeof value.imageUrl !== "string"
+  ) {
+    return null;
+  }
+
+  return value as Student;
+}
+
+function parseStudentsSnapshot(snapshot: string): Student[] {
+  try {
+    const parsed = JSON.parse(snapshot);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((candidate) => normalizeStudent(candidate))
+      .filter((candidate): candidate is Student => candidate !== null);
+  } catch {
+    return [];
   }
 }
 
@@ -139,6 +205,11 @@ export function LeaderboardApp() {
     getKudosSnapshot,
     getServerSnapshot,
   );
+  const directoryStudentsSnapshot = useSyncExternalStore(
+    subscribeDirectoryStudents,
+    getDirectoryStudentsSnapshot,
+    getDirectoryStudentsServerSnapshot,
+  );
 
   const portfolioViews = useMemo<Record<string, number>>(() => {
     return normalizeCountRecord(portfolioViewsSnapshot);
@@ -148,14 +219,59 @@ export function LeaderboardApp() {
     return normalizeCountRecord(kudosSnapshot);
   }, [kudosSnapshot]);
 
+  const directoryStudents = useMemo(() => {
+    return parseStudentsSnapshot(directoryStudentsSnapshot);
+  }, [directoryStudentsSnapshot]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/students", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as { students?: unknown };
+        const nextStudents = Array.isArray(data.students)
+          ? data.students
+              .map((candidate) => normalizeStudent(candidate))
+              .filter((candidate): candidate is Student => candidate !== null)
+          : [];
+
+        window.localStorage.setItem(
+          DIRECTORY_STUDENTS_STORAGE_KEY,
+          JSON.stringify(nextStudents),
+        );
+        window.dispatchEvent(new Event("directory-students-updated"));
+      } catch {
+        // Keep existing snapshot when request fails.
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
   const entries = useMemo<LeaderboardRow[]>(() => {
-    return students.map((student) => ({
+    return directoryStudents.map((student) => ({
       student,
       verifiedAchievements: student.achievements.filter((item) => item.verifiedBy).length,
       views: portfolioViews[student.id] ?? 0,
       kudos: kudos[student.id] ?? 0,
     }));
-  }, [kudos, portfolioViews]);
+  }, [directoryStudents, kudos, portfolioViews]);
 
   const rows = useMemo<LeaderboardRow[]>(() => {
     return sortLeaderboardRows(entries, metric).slice(0, LEADERBOARD_LIMIT);

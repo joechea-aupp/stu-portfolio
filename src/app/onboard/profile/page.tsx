@@ -140,7 +140,16 @@ export default function OnboardProfilePage() {
         <div className="mb-8 mt-6 flex items-center gap-4">
           <div className="relative h-16 w-16 flex-shrink-0 border-[2px] border-[var(--color-brand)] overflow-hidden bg-[var(--color-bg)]">
             {draft.imageUrl && (
-              <Image src={draft.imageUrl} alt={draft.name} fill className="object-cover" />
+              <Image
+                src={draft.imageUrl}
+                alt={
+                  typeof draft.name === "string" && draft.name.trim().length > 0
+                    ? `${draft.name} profile photo`
+                    : "Student profile photo"
+                }
+                fill
+                className="object-cover"
+              />
             )}
           </div>
           <div>

@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useSyncExternalStore, useState } from "react";
-import { students } from "@/data/students";
+import { useEffect, useMemo, useSyncExternalStore, useState } from "react";
 import type { FilterState, Student } from "@/types/student";
 import { FilterSidebar } from "@/components/filters/FilterSidebar";
 import { DirectoryHero } from "@/components/hero/DirectoryHero";
@@ -19,6 +18,20 @@ const initialFilters: FilterState = {
 const PAGE_SIZE = 10;
 const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
 const KUDOS_STORAGE_KEY = "portfolio-kudos";
+const DIRECTORY_STUDENTS_STORAGE_KEY = "directory-students";
+
+function subscribeDirectoryStudents(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("directory-students-updated", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("directory-students-updated", onStoreChange);
+  };
+}
 
 function subscribePortfolioViews(onStoreChange: () => void) {
   if (typeof window === "undefined") {
@@ -70,6 +83,18 @@ function getKudosServerSnapshot() {
   return "{}";
 }
 
+function getDirectoryStudentsSnapshot() {
+  if (typeof window === "undefined") {
+    return "[]";
+  }
+
+  return window.localStorage.getItem(DIRECTORY_STUDENTS_STORAGE_KEY) ?? "[]";
+}
+
+function getDirectoryStudentsServerSnapshot() {
+  return "[]";
+}
+
 function normalizeCountRecord(snapshot: string): Record<string, number> {
   try {
     const parsed = JSON.parse(snapshot);
@@ -86,6 +111,51 @@ function normalizeCountRecord(snapshot: string): Record<string, number> {
     return normalized;
   } catch {
     return {};
+  }
+}
+
+function normalizeStudent(candidate: unknown): Student | null {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+
+  const value = candidate as Partial<Student>;
+
+  if (
+    typeof value.id !== "string" ||
+    typeof value.name !== "string" ||
+    typeof value.major !== "string" ||
+    typeof value.year !== "string" ||
+    !Array.isArray(value.skills) ||
+    typeof value.available !== "boolean" ||
+    typeof value.gpa !== "number" ||
+    !Array.isArray(value.projects) ||
+    !Array.isArray(value.achievements) ||
+    typeof value.summary !== "string" ||
+    typeof value.imageUrl !== "string"
+  ) {
+    return null;
+  }
+
+  return value as Student;
+}
+
+function parseStudentsSnapshot(snapshot: string | null): Student[] {
+  if (!snapshot) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(snapshot);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((candidate) => normalizeStudent(candidate))
+      .filter((candidate): candidate is Student => candidate !== null);
+  } catch {
+    return [];
   }
 }
 
@@ -115,6 +185,11 @@ export function DirectoryApp() {
     getKudosSnapshot,
     getKudosServerSnapshot,
   );
+  const directoryStudentsSnapshot = useSyncExternalStore(
+    subscribeDirectoryStudents,
+    getDirectoryStudentsSnapshot,
+    getDirectoryStudentsServerSnapshot,
+  );
 
   const portfolioViews = useMemo<Record<string, number>>(() => {
     return normalizeCountRecord(portfolioViewsSnapshot);
@@ -124,13 +199,63 @@ export function DirectoryApp() {
     return normalizeCountRecord(kudosSnapshot);
   }, [kudosSnapshot]);
 
+  const directoryStudents = useMemo(() => {
+    const cached = parseStudentsSnapshot(directoryStudentsSnapshot);
+    return cached;
+  }, [directoryStudentsSnapshot]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/students", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as { students?: unknown };
+        const nextStudents = Array.isArray(data.students)
+          ? data.students
+              .map((candidate) => normalizeStudent(candidate))
+              .filter((candidate): candidate is Student => candidate !== null)
+          : [];
+
+        window.localStorage.setItem(
+          DIRECTORY_STUDENTS_STORAGE_KEY,
+          JSON.stringify(nextStudents),
+        );
+        window.dispatchEvent(new Event("directory-students-updated"));
+      } catch {
+        // Keep cached or static students when network request fails.
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
+  const majorOptions = useMemo(() => {
+    return Array.from(new Set(directoryStudents.map((student) => student.major))).sort();
+  }, [directoryStudents]);
+
   const updateFilters = (updater: (current: FilterState) => FilterState) => {
     setFilters(updater);
     setPage(1);
   };
 
   const filteredStudents = useMemo(() => {
-    return students.filter((student) => {
+    return directoryStudents.filter((student) => {
       const matchesMajor =
         filters.majors.length === 0 || filters.majors.some((major) => student.major === major);
       const matchesAvailability = !filters.availableOnly || student.available;
@@ -142,7 +267,7 @@ export function DirectoryApp() {
         matchesSearchTerm
       );
     });
-  }, [filters]);
+  }, [directoryStudents, filters]);
 
   const pageCount = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
   const paginatedStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -188,6 +313,7 @@ export function DirectoryApp() {
     >
         <FilterSidebar
           filters={filters}
+          majorOptions={majorOptions}
           onToggleMajor={toggleMajor}
           onAvailabilityChange={(availableOnly) =>
             updateFilters((current) => ({ ...current, availableOnly }))
@@ -264,6 +390,7 @@ export function DirectoryApp() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         filters={filters}
+            majorOptions={majorOptions}
         onToggleMajor={toggleMajor}
         onAvailabilityChange={(availableOnly) =>
           updateFilters((current) => ({ ...current, availableOnly }))
