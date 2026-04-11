@@ -96,10 +96,10 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
     setUsers((current) => current.map((entry) => (entry.id === updatedUser.id ? updatedUser : entry)));
   }
 
-  async function runAction(input: Record<string, unknown>) {
+  async function runAction(input: Record<string, unknown>): Promise<boolean> {
     const targetId = typeof input.userId === "number" ? input.userId : null;
     if (!targetId) {
-      return;
+      return false;
     }
 
     setBusyUserId(targetId);
@@ -118,7 +118,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
 
       if (!response.ok) {
         setFeedback(payload.error ?? "Request failed.");
-        return;
+        return false;
       }
 
       if (payload.updated) {
@@ -126,8 +126,10 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       }
 
       setFeedback("Update completed.");
+      return true;
     } catch {
       setFeedback("Request failed.");
+      return false;
     } finally {
       setBusyUserId(null);
     }
@@ -152,7 +154,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       return;
     }
 
-    await runAction({
+    const didUpdate = await runAction({
       userId,
       action: "edit",
       name: editDraft.name,
@@ -160,7 +162,9 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       userType: editDraft.userType,
     });
 
-    cancelEdit();
+    if (didUpdate) {
+      cancelEdit();
+    }
   }
 
   async function resetPassword(userId: number) {
@@ -177,7 +181,8 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
   }
 
   return (
-    <section className={`${className ?? "mt-12"} border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6`}>
+    <>
+      <section className={`${className ?? "mt-12"} border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-lg uppercase tracking-[0.08em] text-[var(--color-text)]">Users</h2>
@@ -223,7 +228,6 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
               <tbody>
                 {paginatedUsers.map((user) => {
                   const isBusy = busyUserId === user.id;
-                  const isEditing = editingUserId === user.id && editDraft;
 
                   return (
                     <tr key={user.id} className="border-t border-[var(--color-border)] align-top">
@@ -240,7 +244,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            disabled={isBusy}
+                            disabled={isBusy || busyUserId !== null}
                             onClick={() => startEdit(user)}
                             className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
                           >
@@ -268,74 +272,6 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
                             Reset password
                           </button>
                         </div>
-
-                        {isEditing ? (
-                          <div className="mt-3 grid grid-cols-1 gap-2 rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-3 sm:grid-cols-3">
-                            <input
-                              value={editDraft.name}
-                              onChange={(e) =>
-                                setEditDraft((current) =>
-                                  current
-                                    ? {
-                                        ...current,
-                                        name: e.target.value,
-                                      }
-                                    : current,
-                                )
-                              }
-                              className="w-full border border-[var(--color-border)] bg-white px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-                              placeholder="Name"
-                            />
-                            <input
-                              value={editDraft.email}
-                              onChange={(e) =>
-                                setEditDraft((current) =>
-                                  current
-                                    ? {
-                                        ...current,
-                                        email: e.target.value,
-                                      }
-                                    : current,
-                                )
-                              }
-                              className="w-full border border-[var(--color-border)] bg-white px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-                              placeholder="Email"
-                            />
-                            <select
-                              value={editDraft.userType}
-                              onChange={(e) =>
-                                setEditDraft((current) =>
-                                  current
-                                    ? {
-                                        ...current,
-                                        userType: e.target.value as ManagedUserType,
-                                      }
-                                    : current,
-                                )
-                              }
-                              className="w-full border border-[var(--color-border)] bg-white px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-                            >
-                              <option value="STUDENT">STUDENT</option>
-                              <option value="ADMINISTRATION">ADMINISTRATION</option>
-                            </select>
-                            <div className="sm:col-span-3 flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() => void submitEdit(user.id)}
-                                className="border border-[var(--color-accent)] bg-[var(--color-accent)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-white hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)]"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                onClick={cancelEdit}
-                                className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : null}
                       </td>
                     </tr>
                   );
@@ -371,7 +307,119 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
           ) : null}
         </>
       )}
-    </section>
+      </section>
+
+      {editingUserId !== null && editDraft ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && busyUserId !== editingUserId) {
+              cancelEdit();
+            }
+          }}
+          role="presentation"
+        >
+          <div className="w-full max-w-xl border-[2px] border-[var(--color-border-strong)] bg-[var(--color-surface)] p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-heading text-base uppercase tracking-[0.08em] text-[var(--color-text)]">Edit user</h3>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                  Update name, email, and role.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={busyUserId === editingUserId}
+                className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-40"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              <label className="grid gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</span>
+                <input
+                  value={editDraft.name}
+                  onChange={(e) =>
+                    setEditDraft((current) =>
+                      current
+                        ? {
+                            ...current,
+                            name: e.target.value,
+                          }
+                        : current,
+                    )
+                  }
+                  className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                  placeholder="Name"
+                />
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</span>
+                <input
+                  value={editDraft.email}
+                  onChange={(e) =>
+                    setEditDraft((current) =>
+                      current
+                        ? {
+                            ...current,
+                            email: e.target.value,
+                          }
+                        : current,
+                    )
+                  }
+                  className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                  placeholder="Email"
+                />
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</span>
+                <select
+                  value={editDraft.userType}
+                  onChange={(e) =>
+                    setEditDraft((current) =>
+                      current
+                        ? {
+                            ...current,
+                            userType: e.target.value as ManagedUserType,
+                          }
+                        : current,
+                    )
+                  }
+                  className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                >
+                  <option value="STUDENT">STUDENT</option>
+                  <option value="ADMINISTRATION">ADMINISTRATION</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={busyUserId === editingUserId}
+                className="border border-[var(--color-border-strong)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitEdit(editingUserId)}
+                disabled={busyUserId === editingUserId}
+                className="border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)] disabled:opacity-40"
+              >
+                {busyUserId === editingUserId ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
