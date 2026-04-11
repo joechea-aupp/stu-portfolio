@@ -21,6 +21,12 @@ interface DraftProfile {
 }
 
 const EMPTY_TIMELINE: TimelineItem = { period: "", title: "", details: "" };
+const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
+  { value: "freshman", label: "Freshman" },
+  { value: "sophomore", label: "Sophomore" },
+  { value: "junior", label: "Junior" },
+  { value: "senior", label: "Senior" },
+];
 
 interface EditState {
   draft: DraftProfile;
@@ -35,6 +41,8 @@ export default function OnboardProfilePage() {
   const [state, setState] = useState<EditState | null>(null);
   const [loading, setLoading] = useState(true);
   const [skillInput, setSkillInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -48,22 +56,32 @@ export default function OnboardProfilePage() {
         });
 
         if (response.status === 401) {
-          router.replace("/create-account");
+          router.replace("/login");
           return;
         }
 
         if (!response.ok) {
-          router.replace("/onboard");
+          setState(null);
           return;
         }
 
-        const payload = (await response.json()) as { draft?: DraftProfile | null };
-        const draft = payload.draft;
-
-        if (!draft) {
-          router.replace("/onboard");
-          return;
-        }
+        const payload = (await response.json()) as {
+          draft?: DraftProfile | null;
+          user?: { name?: string };
+        };
+        const fallbackDraft: DraftProfile = {
+          name: payload.user?.name?.trim() || "Student",
+          major: "",
+          graduationYear: "",
+          year: "freshman",
+          availableForProject: false,
+          imageUrl: "",
+          projects: [],
+          achievements: [],
+          summary: "",
+          skills: [],
+        };
+        const draft = payload.draft ?? fallbackDraft;
 
         setState({
           draft,
@@ -73,7 +91,7 @@ export default function OnboardProfilePage() {
           summary: draft.summary ?? "",
         });
       } catch {
-        router.replace("/onboard");
+        setState(null);
       } finally {
         setLoading(false);
       }
@@ -117,6 +135,9 @@ export default function OnboardProfilePage() {
   // ── save ─────────────────────────────────────────────────
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    setSaving(true);
+    setSaveFeedback(null);
+
     const updated: DraftProfile = {
       ...draft,
       skills,
@@ -125,39 +146,46 @@ export default function OnboardProfilePage() {
       summary,
     };
 
-    const response = await fetch("/api/onboard", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        major: updated.major,
-        graduationYear: updated.graduationYear,
-        year: updated.year,
-        availableForProject: Boolean(updated.availableForProject),
-        summary: updated.summary,
-        imageUrl: updated.imageUrl,
-        skills: updated.skills,
-        projects: updated.projects,
-        achievements: updated.achievements,
-      }),
-    });
+    try {
+      const response = await fetch("/api/onboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          major: updated.major,
+          graduationYear: updated.graduationYear,
+          year: updated.year,
+          availableForProject: Boolean(updated.availableForProject),
+          summary: updated.summary,
+          imageUrl: updated.imageUrl,
+          skills: updated.skills,
+          projects: updated.projects,
+          achievements: updated.achievements,
+        }),
+      });
 
-    const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json()) as { error?: string };
 
-    if (!response.ok) {
-      alert(payload.error ?? "Failed to save profile.");
-      return;
+      if (!response.ok) {
+        setSaveFeedback(payload.error ?? "Failed to save profile.");
+        return;
+      }
+
+      setSaveFeedback("Profile updated successfully.");
+      router.refresh();
+    } catch {
+      setSaveFeedback("Failed to save profile.");
+    } finally {
+      setSaving(false);
     }
-
-    router.push("/");
   }
 
   return (
     <PageLayout width="md" className="py-10" containerClassName="max-w-2xl">
         <Link
-          href="/onboard"
+          href="/"
           className="inline-block border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
         >
-          ← Back
+          ← Back to directory
         </Link>
 
         {/* Identity summary */}
@@ -187,6 +215,71 @@ export default function OnboardProfilePage() {
         </div>
 
         <form onSubmit={handleSave} className="flex flex-col gap-10">
+
+          {/* ── Profile info ── */}
+          <Section title="Profile info">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Major</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Computer Science"
+                  value={draft.major}
+                  onChange={(e) => setState((s) => s && ({ ...s, draft: { ...s.draft, major: e.target.value } }))}
+                  className={inputCls}
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Graduation year</label>
+                <input
+                  type="number"
+                  min={2000}
+                  max={2100}
+                  placeholder="e.g. 2028"
+                  value={draft.graduationYear ?? ""}
+                  onChange={(e) => setState((s) => s && ({ ...s, draft: { ...s.draft, graduationYear: e.target.value } }))}
+                  className={inputCls}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Classification</label>
+                <div className="relative">
+                  <select
+                    value={draft.year}
+                    onChange={(e) => setState((s) => s && ({ ...s, draft: { ...s.draft, year: e.target.value as AcademicYear } }))}
+                    className="w-full cursor-pointer appearance-none border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 pr-8 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
+                  >
+                    {CLASSIFICATIONS.map((classification) => (
+                      <option key={classification.value} value={classification.value}>
+                        {classification.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 border-[2px] border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
+                <input
+                  id="availableForProject"
+                  type="checkbox"
+                  checked={Boolean(draft.availableForProject)}
+                  onChange={(e) =>
+                    setState((s) => s && ({ ...s, draft: { ...s.draft, availableForProject: e.target.checked } }))
+                  }
+                  className="h-4 w-4 cursor-pointer accent-[var(--color-accent)]"
+                />
+                <label htmlFor="availableForProject" className="cursor-pointer text-xs text-[var(--color-text)]">
+                  Available for project opportunities
+                </label>
+              </div>
+            </div>
+          </Section>
 
           {/* ── Skills ── */}
           <Section title="Skills">
@@ -266,12 +359,19 @@ export default function OnboardProfilePage() {
             <AddItemButton onClick={addAchievement} label="Add achievement" />
           </Section>
 
+          {saveFeedback ? (
+            <p className="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+              {saveFeedback}
+            </p>
+          ) : null}
+
           {/* Save */}
           <button
             type="submit"
+            disabled={saving}
             className="border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)] w-full"
           >
-            Save &amp; finish
+            {saving ? "Saving..." : "Save profile"}
           </button>
         </form>
     </PageLayout>

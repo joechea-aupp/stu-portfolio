@@ -5,9 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageLayout } from "@/components/layout/PageLayout";
 
-export default function CreateAccountPage() {
+export default function LoginPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -19,28 +18,27 @@ export default function CreateAccountPage() {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
       const payload = (await response.json()) as {
         error?: string;
+        user?: {
+          hasProfile?: boolean;
+        };
       };
 
       if (!response.ok) {
-        setError(payload.error ?? "Unable to create account.");
+        setError(payload.error ?? "Unable to log in.");
         return;
       }
 
-      router.push("/onboard");
+      router.push("/onboard/profile");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -53,27 +51,13 @@ export default function CreateAccountPage() {
       <div className="border-[3px] border-[var(--color-brand)] bg-[var(--color-surface)]">
         <div className="bg-[var(--color-brand)] px-8 py-6">
           <p className="text-[9px] uppercase tracking-[0.16em] text-white/70">StudentHub</p>
-          <h1 className="mt-2 font-heading text-3xl uppercase leading-tight text-white">
-            Create your account
-          </h1>
+          <h1 className="mt-2 font-heading text-3xl uppercase leading-tight text-white">Log in</h1>
           <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-white/75">
-            Create your account first, then finish your student profile in onboarding.
+            Use your account credentials to continue your student profile.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-8 py-8">
-          <Field label="Full name" htmlFor="name">
-            <input
-              id="name"
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
-              placeholder="e.g. Sophea Chan"
-            />
-          </Field>
-
           <Field label="Email" htmlFor="email">
             <input
               id="email"
@@ -91,13 +75,12 @@ export default function CreateAccountPage() {
             <input
               id="password"
               type="password"
-              autoComplete="new-password"
+              autoComplete="current-password"
               required
-              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
-              placeholder="At least 8 characters"
+              placeholder="Your password"
             />
           </Field>
 
@@ -110,13 +93,13 @@ export default function CreateAccountPage() {
             disabled={submitting}
             className="mt-2 border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? "Creating..." : "Create account"}
+            {submitting ? "Signing in..." : "Log in"}
           </button>
 
           <p className="text-center text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-            Already registered?{" "}
-            <Link href="/login" className="text-[var(--color-accent)] underline underline-offset-2">
-              Log in
+            Need an account?{" "}
+            <Link href="/create-account" className="text-[var(--color-accent)] underline underline-offset-2">
+              Create one
             </Link>
           </p>
         </form>
