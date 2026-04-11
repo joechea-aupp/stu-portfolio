@@ -17,20 +17,31 @@ const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
 export default function OnboardPage() {
   const router = useRouter();
   const [preview, setPreview] = useState<string | null>(null);
-  const [imageBase64, setImageBase64] = useState<string>("");
-  const [name, setName] = useState("");
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
   const [major, setMajor] = useState("");
   const [graduationYear, setGraduationYear] = useState("");
   const [year, setYear] = useState<AcademicYear | "">("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setPreview(URL.createObjectURL(file));
-    const reader = new FileReader();
-    reader.onload = (ev) => setImageBase64((ev.target?.result as string) ?? "");
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload/avatar", { method: "POST", body: form });
+      const payload = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok) throw new Error(payload.error ?? "Upload failed.");
+      setImageUrl(payload.url ?? "");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload failed.");
+      setPreview(null);
+    } finally {
+      setUploading(false);
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -38,11 +49,10 @@ export default function OnboardPage() {
     const existing = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "{}");
     const draft = {
       ...existing,
-      name,
       major,
       graduationYear,
       year,
-      imageUrl: imageBase64,
+      imageUrl,
       projects: existing.projects ?? [],
       achievements: existing.achievements ?? [],
       summary: existing.summary ?? "",
@@ -97,10 +107,15 @@ export default function OnboardPage() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="relative h-20 w-20 flex-shrink-0 border-[2px] border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg)] overflow-hidden hover:border-[var(--color-accent)] transition"
+                    disabled={uploading}
+                    className="relative h-20 w-20 flex-shrink-0 border-[2px] border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg)] overflow-hidden hover:border-[var(--color-accent)] transition disabled:opacity-60"
                     aria-label="Upload profile photo"
                   >
-                    {preview ? (
+                    {uploading ? (
+                      <span className="absolute inset-0 flex items-center justify-center text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                        Uploading…
+                      </span>
+                    ) : preview ? (
                       <Image
                         src={preview}
                         alt="Profile preview"
@@ -131,26 +146,6 @@ export default function OnboardPage() {
                   accept="image/jpeg,image/png"
                   className="sr-only"
                   onChange={handlePhotoChange}
-                />
-              </div>
-
-              {/* Full name */}
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="fullname"
-                  className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]"
-                >
-                  Full name
-                </label>
-                <input
-                  id="fullname"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  placeholder="e.g. Sophea Chan"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/50 outline-none focus:border-[var(--color-accent)] transition"
                 />
               </div>
 
@@ -227,7 +222,8 @@ export default function OnboardPage() {
               {/* Submit */}
               <button
                 type="submit"
-                className="mt-2 border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)] w-full"
+                disabled={uploading}
+                className="mt-2 border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)] w-full disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Submit &amp; get featured
               </button>

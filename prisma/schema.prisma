@@ -28,6 +28,11 @@ model Student {
   major String
   graduation_year Int
   classification Classification
+  summary String? @db.Text
+  image_url String? @db.MediumText
+  skills Json
+  projects Json
+  achievements Json
   // user create soley for typescript type safety and relation, authentication handled separately
   user users @relation(fields: [user_id], references: [id])
 

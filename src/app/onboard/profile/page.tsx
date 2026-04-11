@@ -79,7 +79,7 @@ export default function OnboardProfilePage() {
   function removeAchievement(i: number) { setState((s) => s && ({ ...s, achievements: s.achievements.filter((_, idx) => idx !== i) })); }
 
   // ── save ─────────────────────────────────────────────────
-  function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     const updated: DraftProfile = {
       ...draft,
@@ -88,9 +88,40 @@ export default function OnboardProfilePage() {
       achievements: achievements.filter((a) => a.title.trim()),
       summary,
     };
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(updated));
-    // TODO: submit to backend
-    alert("Profile saved! (stored in localStorage)");
+
+    const userId = localStorage.getItem("studenthub_user_id");
+    if (!userId) {
+      alert("Session expired. Please create your account again.");
+      router.replace("/create-account");
+      return;
+    }
+
+    const response = await fetch("/api/onboard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: Number(userId),
+        major: updated.major,
+        graduationYear: updated.graduationYear,
+        year: updated.year,
+        summary: updated.summary,
+        imageUrl: updated.imageUrl,
+        skills: updated.skills,
+        projects: updated.projects,
+        achievements: updated.achievements,
+      }),
+    });
+
+    const payload = (await response.json()) as { error?: string };
+
+    if (!response.ok) {
+      alert(payload.error ?? "Failed to save profile.");
+      return;
+    }
+
+    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem("studenthub_user_id");
+    router.push("/");
   }
 
   return (
