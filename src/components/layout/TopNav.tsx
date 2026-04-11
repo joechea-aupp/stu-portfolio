@@ -149,6 +149,7 @@ export function TopNav() {
               <Link
                 key={item.label}
                 href={item.href}
+                prefetch={false}
                 className={`border-b-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
                   isActive
                     ? "border-[var(--color-accent)] text-[var(--color-text)]"

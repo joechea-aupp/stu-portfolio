@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { FilterState, Student } from "@/types/student";
 import { FilterSidebar } from "@/components/filters/FilterSidebar";
 import { DirectoryHero } from "@/components/hero/DirectoryHero";
@@ -17,6 +18,7 @@ const initialFilters: FilterState = {
 };
 
 const PAGE_SIZE = 10;
+const MIN_LOADING_MS = 250;
 
 type StudentMetricsResponse = {
   metrics?: {
@@ -66,6 +68,7 @@ function matchesQuery(student: Student, query: string) {
 }
 
 export function DirectoryApp() {
+  const pathname = usePathname();
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -73,7 +76,13 @@ export function DirectoryApp() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (pathname !== "/") {
+      return;
+    }
+
     const controller = new AbortController();
+    const startedAt = Date.now();
+    setIsLoading(true);
 
     void (async () => {
       try {
@@ -98,14 +107,25 @@ export function DirectoryApp() {
       } catch {
         // Keep current UI state when request fails.
       } finally {
-        setIsLoading(false);
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(0, MIN_LOADING_MS - elapsed);
+
+        if (remaining > 0) {
+          await new Promise((resolve) => {
+            setTimeout(resolve, remaining);
+          });
+        }
+
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     })();
 
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [pathname]);
 
   const majorOptions = useMemo(() => {
     return Array.from(new Set(students.map((student) => student.major))).sort();

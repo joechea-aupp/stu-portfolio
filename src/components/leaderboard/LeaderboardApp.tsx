@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import type { Student } from "@/types/student";
 
 const LEADERBOARD_LIMIT = 10;
+const MIN_LOADING_MS = 250;
 
 type LeaderboardMetric = "verified" | "views" | "kudos";
 
@@ -73,12 +75,19 @@ function metricButtonClass(currentMetric: LeaderboardMetric, metric: Leaderboard
 }
 
 export function LeaderboardApp() {
+  const pathname = usePathname();
   const [metric, setMetric] = useState<LeaderboardMetric>("verified");
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (pathname !== "/leaderboard") {
+      return;
+    }
+
     const controller = new AbortController();
+    const startedAt = Date.now();
+    setLoading(true);
 
     void (async () => {
       try {
@@ -89,7 +98,6 @@ export function LeaderboardApp() {
         });
 
         if (!response.ok) {
-          setLoading(false);
           return;
         }
 
@@ -104,14 +112,25 @@ export function LeaderboardApp() {
       } catch {
         // Keep current UI when request fails.
       } finally {
-        setLoading(false);
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(0, MIN_LOADING_MS - elapsed);
+
+        if (remaining > 0) {
+          await new Promise((resolve) => {
+            setTimeout(resolve, remaining);
+          });
+        }
+
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     })();
 
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [pathname]);
 
   const entries = useMemo<LeaderboardRow[]>(() => {
     return students.map((student) => ({
