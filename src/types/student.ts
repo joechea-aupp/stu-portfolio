@@ -4,6 +4,8 @@ export type UserType = "STUDENT" | "ADMINISTRATION";
 
 export type AdministrationTitle = "MR" | "MS" | "DR";
 
+export type AdministrationGender = "Male" | "Female";
+
 export type ThemeName = "classic" | "slate" | "sunrise";
 
 export interface Verifier {
@@ -49,7 +51,7 @@ export interface AdministrationProfile {
   occupation: string;
   company: string;
   phoneNumber: string;
-  gender: string;
+  gender: AdministrationGender;
   summary: string;
   profilePicUrl: string;
   title: AdministrationTitle;

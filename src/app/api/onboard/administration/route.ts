@@ -16,10 +16,27 @@ interface AdministrationDraft {
   occupation: string;
   company: string;
   phoneNumber: string;
-  gender: string;
+  gender: "Male" | "Female" | "";
   summary: string;
   profilePicUrl: string;
   title: AdministrationTitle;
+}
+
+function normalizeGender(rawGender: unknown): "Male" | "Female" | "" {
+  if (typeof rawGender !== "string") {
+    return "";
+  }
+
+  const normalized = rawGender.trim().toLowerCase();
+  if (normalized === "male") {
+    return "Male";
+  }
+
+  if (normalized === "female") {
+    return "Female";
+  }
+
+  return "";
 }
 
 function normalizeDraft(body: Record<string, unknown>): AdministrationDraft {
@@ -29,7 +46,7 @@ function normalizeDraft(body: Record<string, unknown>): AdministrationDraft {
     occupation: typeof body.occupation === "string" ? body.occupation.trim() : "",
     company: typeof body.company === "string" ? body.company.trim() : "",
     phoneNumber: typeof body.phoneNumber === "string" ? body.phoneNumber.trim() : "",
-    gender: typeof body.gender === "string" ? body.gender.trim() : "",
+    gender: normalizeGender(body.gender),
     summary: typeof body.summary === "string" ? body.summary.trim() : "",
     profilePicUrl: typeof body.profilePicUrl === "string" ? body.profilePicUrl.trim() : "",
     title: (Object.values(AdministrationTitle).includes(titleRaw as AdministrationTitle)
@@ -112,6 +129,13 @@ export async function POST(request: Request) {
   }
 
   const draft = normalizeDraft(body as Record<string, unknown>);
+  const rawGenderProvided =
+    typeof (body as Record<string, unknown>).gender === "string" &&
+    ((body as Record<string, unknown>).gender as string).trim().length > 0;
+
+  if (rawGenderProvided && !draft.gender) {
+    return Response.json({ error: "gender must be Male or Female." }, { status: 400 });
+  }
 
   if (
     !draft.occupation ||

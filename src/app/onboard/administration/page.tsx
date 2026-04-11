@@ -2,14 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { AdministrationProfile, AdministrationTitle } from "@/types/student";
+import type { AdministrationGender, AdministrationProfile, AdministrationTitle } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { OnboardProfileSkeleton } from "@/components/onboard/OnboardProfileSkeleton";
 
 interface DraftResponse {
   draft?: AdministrationProfile | null;
   user?: { name?: string };
   error?: string;
+}
+
+interface EditState {
+  name: string;
+  title: AdministrationTitle;
+  occupation: string;
+  company: string;
+  phoneNumber: string;
+  gender: AdministrationGender | "";
+  summary: string;
+  profilePicUrl: string;
 }
 
 const TITLES: Array<{ value: AdministrationTitle; label: string }> = [
@@ -18,24 +31,30 @@ const TITLES: Array<{ value: AdministrationTitle; label: string }> = [
   { value: "DR", label: "Dr." },
 ];
 
+const GENDERS: Array<{ value: AdministrationGender; label: string }> = [
+  { value: "Male", label: "Male" },
+  { value: "Female", label: "Female" },
+];
+
+function normalizeGender(gender: string): AdministrationGender | "" {
+  if (gender === "Male" || gender === "Female") {
+    return gender;
+  }
+
+  return "";
+}
+
 export default function AdministrationOnboardPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [state, setState] = useState<EditState | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const [title, setTitle] = useState<AdministrationTitle>("MR");
-  const [occupation, setOccupation] = useState("");
-  const [company, setCompany] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [gender, setGender] = useState("");
-  const [summary, setSummary] = useState("");
-  const [profilePicUrl, setProfilePicUrl] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -64,23 +83,39 @@ export default function AdministrationOnboardPage() {
         const payload = (await response.json()) as DraftResponse;
 
         if (!response.ok) {
-          setError(payload.error ?? "Unable to load administration onboarding.");
+          setLoadError(payload.error ?? "Unable to load administration profile.");
+          setState(null);
           return;
         }
 
-        if (payload.draft) {
-          setTitle(payload.draft.title);
-          setOccupation(payload.draft.occupation);
-          setCompany(payload.draft.company);
-          setPhoneNumber(payload.draft.phoneNumber);
-          setGender(payload.draft.gender);
-          setSummary(payload.draft.summary);
-          setProfilePicUrl(payload.draft.profilePicUrl);
-          setPreview(payload.draft.profilePicUrl || null);
-        }
+        const fallbackDraft: AdministrationProfile = {
+          title: "MR",
+          occupation: "",
+          company: "",
+          phoneNumber: "",
+          gender: "",
+          summary: "",
+          profilePicUrl: "",
+        };
+
+        const draft = payload.draft ?? fallbackDraft;
+
+        setState({
+          name: payload.user?.name?.trim() || "Administration",
+          title: draft.title,
+          occupation: draft.occupation,
+          company: draft.company,
+          phoneNumber: draft.phoneNumber,
+          gender: normalizeGender(draft.gender),
+          summary: draft.summary,
+          profilePicUrl: draft.profilePicUrl,
+        });
+        setLoadError(null);
+        setPreview(draft.profilePicUrl || null);
       } catch {
         if (active) {
-          setError("Unable to load administration onboarding.");
+          setLoadError("Unable to load administration profile.");
+          setState(null);
         }
       } finally {
         if (active) {
@@ -102,7 +137,7 @@ export default function AdministrationOnboardPage() {
 
     setPreview(URL.createObjectURL(file));
     setUploading(true);
-    setError(null);
+    setSaveFeedback(null);
 
     try {
       const form = new FormData();
@@ -119,9 +154,16 @@ export default function AdministrationOnboardPage() {
         throw new Error(payload.error ?? "Upload failed.");
       }
 
-      setProfilePicUrl(payload.url ?? "");
+      setState((current) =>
+        current
+          ? {
+              ...current,
+              profilePicUrl: payload.url ?? "",
+            }
+          : current,
+      );
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload failed.");
+      setSaveFeedback(uploadError instanceof Error ? uploadError.message : "Upload failed.");
       setPreview(null);
     } finally {
       setUploading(false);
@@ -130,9 +172,12 @@ export default function AdministrationOnboardPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    setSuccess(null);
+    if (!state) {
+      return;
+    }
+
+    setSaving(true);
+    setSaveFeedback(null);
 
     try {
       const response = await fetch("/api/onboard/administration", {
@@ -141,187 +186,267 @@ export default function AdministrationOnboardPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          title,
-          occupation,
-          company,
-          phoneNumber,
-          gender,
-          summary,
-          profilePicUrl,
+          title: state.title,
+          occupation: state.occupation,
+          company: state.company,
+          phoneNumber: state.phoneNumber,
+          gender: state.gender,
+          summary: state.summary,
+          profilePicUrl: state.profilePicUrl,
         }),
       });
 
       const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
-        setError(payload.error ?? "Unable to save administration profile.");
+        setSaveFeedback(payload.error ?? "Unable to save administration profile.");
         return;
       }
 
-      setSuccess("Administration profile saved.");
+      setSaveFeedback("Profile updated successfully.");
+      router.refresh();
     } catch {
-      setError("Unable to save administration profile.");
+      setSaveFeedback("Unable to save administration profile.");
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   }
 
   if (loading) {
+    return <OnboardProfileSkeleton />;
+  }
+
+  if (!state) {
     return (
-      <PageLayout width="sm" centered>
-        <div className="border-[3px] border-[var(--color-brand)] bg-[var(--color-surface)] px-8 py-10">
-          <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-            Loading administration onboarding...
+      <PageLayout width="md" className="py-10" containerClassName="max-w-2xl">
+        <div className="border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
+            Profile editor unavailable
           </p>
+          <p className="mt-2 text-sm text-[var(--color-text)]">
+            {loadError ?? "Unable to load administration profile."}
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Link
+              href="/"
+              className="inline-flex h-9 items-center justify-center border border-[var(--color-border)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            >
+              Back to directory
+            </Link>
+            <button
+              type="button"
+              onClick={() => router.refresh()}
+              className="inline-flex h-9 items-center justify-center border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-white hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)]"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </PageLayout>
     );
   }
 
   return (
-    <PageLayout width="sm" centered>
-      <div className="w-full max-w-lg border-[3px] border-[var(--color-brand)] bg-[var(--color-surface)]">
-        <div className="bg-[var(--color-brand)] px-8 py-5">
-          <p className="text-[9px] uppercase tracking-[0.18em] text-white/60">Administration onboarding</p>
-          <h1 className="mt-2 font-heading text-3xl uppercase leading-tight text-white">Complete your profile</h1>
-          <p className="mt-1 text-[9px] uppercase tracking-[0.14em] text-white/70">
-            Set up your administration details before continuing.
-          </p>
-        </div>
+    <PageLayout width="md" className="py-10" containerClassName="max-w-2xl">
+      <Link
+        href="/"
+        className="inline-block border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
+      >
+        ← Back to directory
+      </Link>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-8 py-8">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-              Profile photo
+      <div className="mb-8 mt-6 flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="relative h-16 w-16 flex-shrink-0 overflow-hidden border-[2px] border-[var(--color-brand)] bg-[var(--color-bg)] transition hover:border-[var(--color-accent)] disabled:opacity-60"
+          aria-label="Upload profile photo"
+        >
+          {uploading ? (
+            <span className="absolute inset-0 flex items-center justify-center text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+              Uploading...
             </span>
-            <div className="flex items-center gap-5">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="relative h-20 w-20 flex-shrink-0 overflow-hidden border-[2px] border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg)] transition hover:border-[var(--color-accent)] disabled:opacity-60"
-                aria-label="Upload profile photo"
+          ) : preview ? (
+            <Image src={preview} alt="Profile preview" fill className="object-cover" />
+          ) : (
+            <span className="absolute inset-0 flex items-center justify-center text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+              Upload
+            </span>
+          )}
+        </button>
+        <div>
+          <p className="font-heading text-xl uppercase leading-tight text-[var(--color-text)]">{state.name}</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+            Administration profile
+          </p>
+          <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">JPG or PNG, max 5 MB</p>
+        </div>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png"
+        className="sr-only"
+        onChange={handlePhotoChange}
+      />
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-10">
+        <Section title="Profile info">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Title" htmlFor="title">
+              <select
+                id="title"
+                value={state.title}
+                onChange={(e) =>
+                  setState((current) =>
+                    current
+                      ? {
+                          ...current,
+                          title: e.target.value as AdministrationTitle,
+                        }
+                      : current,
+                  )
+                }
+                className={`${inputClassName} cursor-pointer appearance-none bg-[var(--color-surface)]`}
               >
-                {uploading ? (
-                  <span className="absolute inset-0 flex items-center justify-center text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                    Uploading...
-                  </span>
-                ) : preview ? (
-                  <Image src={preview} alt="Profile preview" fill className="object-cover" />
-                ) : (
-                  <span className="absolute inset-0 flex items-center justify-center text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                    Upload
-                  </span>
-                )}
-              </button>
-              <div>
-                <p className="text-xs text-[var(--color-text-muted)]">Upload a professional profile photo.</p>
-                <p className="mt-0.5 text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]/70">
-                  JPG or PNG · max 5 MB
-                </p>
-              </div>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png"
-              className="sr-only"
-              onChange={handlePhotoChange}
-            />
+                {TITLES.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Occupation" htmlFor="occupation">
+              <input
+                id="occupation"
+                type="text"
+                value={state.occupation}
+                onChange={(e) =>
+                  setState((current) =>
+                    current
+                      ? {
+                          ...current,
+                          occupation: e.target.value,
+                        }
+                      : current,
+                  )
+                }
+                required
+                className={inputClassName}
+                placeholder="e.g. Program Director"
+              />
+            </Field>
           </div>
 
-          <Field label="Title" htmlFor="title">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Company" htmlFor="company">
+              <input
+                id="company"
+                type="text"
+                value={state.company}
+                onChange={(e) =>
+                  setState((current) =>
+                    current
+                      ? {
+                          ...current,
+                          company: e.target.value,
+                        }
+                      : current,
+                  )
+                }
+                required
+                className={inputClassName}
+                placeholder="e.g. AUPP"
+              />
+            </Field>
+
+            <Field label="Phone number" htmlFor="phoneNumber">
+              <input
+                id="phoneNumber"
+                type="tel"
+                value={state.phoneNumber}
+                onChange={(e) =>
+                  setState((current) =>
+                    current
+                      ? {
+                          ...current,
+                          phoneNumber: e.target.value,
+                        }
+                      : current,
+                  )
+                }
+                required
+                className={inputClassName}
+                placeholder="e.g. +855 12 345 678"
+              />
+            </Field>
+          </div>
+
+          <Field label="Gender" htmlFor="gender">
             <select
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value as AdministrationTitle)}
-              className={inputClassName}
+              id="gender"
+              value={state.gender}
+              onChange={(e) =>
+                setState((current) =>
+                  current
+                    ? {
+                        ...current,
+                        gender: e.target.value as AdministrationGender | "",
+                      }
+                    : current,
+                )
+              }
+              required
+              className={`${inputClassName} cursor-pointer appearance-none bg-[var(--color-surface)]`}
             >
-              {TITLES.map((entry) => (
+              <option value="">Select gender</option>
+              {GENDERS.map((entry) => (
                 <option key={entry.value} value={entry.value}>
                   {entry.label}
                 </option>
               ))}
             </select>
           </Field>
+        </Section>
 
-          <Field label="Occupation" htmlFor="occupation">
-            <input
-              id="occupation"
-              type="text"
-              value={occupation}
-              onChange={(e) => setOccupation(e.target.value)}
-              required
-              className={inputClassName}
-              placeholder="e.g. Program Director"
-            />
-          </Field>
+        <Section title="Notes / Summary">
+          <textarea
+            id="summary"
+            value={state.summary}
+            onChange={(e) =>
+              setState((current) =>
+                current
+                  ? {
+                      ...current,
+                      summary: e.target.value,
+                    }
+                  : current,
+              )
+            }
+            required
+            rows={5}
+            className={`${inputClassName} resize-y`}
+            placeholder="Short administration profile summary"
+          />
+        </Section>
 
-          <Field label="Company" htmlFor="company">
-            <input
-              id="company"
-              type="text"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              required
-              className={inputClassName}
-              placeholder="e.g. AUPP"
-            />
-          </Field>
+        {saveFeedback ? (
+          <p className="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+            {saveFeedback}
+          </p>
+        ) : null}
 
-          <Field label="Phone number" htmlFor="phoneNumber">
-            <input
-              id="phoneNumber"
-              type="tel"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              required
-              className={inputClassName}
-              placeholder="e.g. +855 12 345 678"
-            />
-          </Field>
-
-          <Field label="Gender" htmlFor="gender">
-            <input
-              id="gender"
-              type="text"
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              required
-              className={inputClassName}
-              placeholder="e.g. Female"
-            />
-          </Field>
-
-          <Field label="Summary" htmlFor="summary">
-            <textarea
-              id="summary"
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              required
-              rows={5}
-              className={inputClassName}
-              placeholder="Short administration profile summary"
-            />
-          </Field>
-
-          {error ? (
-            <p className="border border-red-400 bg-red-100 px-3 py-2 text-sm text-red-700">{error}</p>
-          ) : null}
-
-          {success ? (
-            <p className="border border-emerald-400 bg-emerald-100 px-3 py-2 text-sm text-emerald-700">{success}</p>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={submitting || uploading}
-            className="mt-2 border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {submitting ? "Saving..." : "Save administration profile"}
-          </button>
-        </form>
-      </div>
+        <button
+          type="submit"
+          disabled={saving || uploading}
+          className="w-full border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {saving ? "Saving..." : "Save profile"}
+        </button>
+      </form>
     </PageLayout>
   );
 }
@@ -343,5 +468,17 @@ function Field({
   );
 }
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <h2 className="font-heading text-lg uppercase tracking-[0.08em] text-[var(--color-text)]">{title}</h2>
+        <div className="flex-1 border-t-[2px] border-[var(--color-border)]" />
+      </div>
+      {children}
+    </section>
+  );
+}
+
 const inputClassName =
-  "w-full border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]";
+  "w-full border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/50 outline-none transition focus:border-[var(--color-accent)]";
