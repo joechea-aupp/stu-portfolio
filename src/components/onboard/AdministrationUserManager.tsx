@@ -49,24 +49,51 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
   const [passwordResetError, setPasswordResetError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const sortedUsers = useMemo(
     () => users.slice().sort((a, b) => Number(new Date(b.createdAt)) - Number(new Date(a.createdAt))),
     [users],
   );
 
-  const pageCount = Math.max(1, Math.ceil(sortedUsers.length / USERS_PER_PAGE));
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const filteredUsers = useMemo(() => {
+    if (!normalizedSearch) {
+      return sortedUsers;
+    }
+
+    return sortedUsers.filter((user) => {
+      const searchable = [
+        String(user.id),
+        user.name,
+        user.email,
+        user.userType,
+        user.isActive ? "enabled" : "disabled",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return searchable.includes(normalizedSearch);
+    });
+  }, [normalizedSearch, sortedUsers]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
 
   const paginatedUsers = useMemo(() => {
     const startIndex = (page - 1) * USERS_PER_PAGE;
-    return sortedUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
-  }, [page, sortedUsers, USERS_PER_PAGE]);
+    return filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
+  }, [filteredUsers, page, USERS_PER_PAGE]);
 
   useEffect(() => {
     if (page > pageCount) {
       setPage(pageCount);
     }
   }, [page, pageCount]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [normalizedSearch]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -250,6 +277,27 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
         </button>
       </div>
 
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <label className="grid min-w-[240px] flex-1 max-w-md gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+            Search users
+          </span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+            placeholder="Search by id, name, email, type, or status"
+          />
+        </label>
+
+        {normalizedSearch ? (
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+            {filteredUsers.length} result{filteredUsers.length === 1 ? "" : "s"}
+          </p>
+        ) : null}
+      </div>
+
       {feedback ? (
         <p className="mt-4 border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
           {feedback}
@@ -260,6 +308,8 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
         <UserTableSkeleton />
       ) : sortedUsers.length === 0 ? (
         <p className="mt-4 text-sm text-[var(--color-text-muted)]">No users found.</p>
+      ) : filteredUsers.length === 0 ? (
+        <p className="mt-4 text-sm text-[var(--color-text-muted)]">No users match your search.</p>
       ) : (
         <>
           <div className="mt-4 overflow-x-auto border border-[var(--color-border)]">
@@ -269,7 +319,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">ID</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
-                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
@@ -285,9 +335,39 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
                       <td className="px-3 py-2 text-[var(--color-text-muted)]">{user.id}</td>
                       <td className="px-3 py-2 text-[var(--color-text)]">{user.name}</td>
                       <td className="px-3 py-2 text-[var(--color-text)]">{user.email}</td>
-                      <td className="px-3 py-2 text-[var(--color-text)]">{user.userType}</td>
-                      <td className="px-3 py-2 text-[var(--color-text)]">{user.isActive ? "Enabled" : "Disabled"}</td>
-                      <td className="px-3 py-2 text-[var(--color-text)]">{user.hasProfile ? "Complete" : "Missing"}</td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
+                            user.userType === "ADMINISTRATION"
+                              ? "border-sky-200 bg-sky-50 text-sky-700"
+                              : "border-violet-200 bg-violet-50 text-violet-700"
+                          }`}
+                        >
+                          {user.userType}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
+                            user.isActive
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-rose-200 bg-rose-50 text-rose-700"
+                          }`}
+                        >
+                          {user.isActive ? "Enabled" : "Disabled"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
+                            user.hasProfile
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {user.hasProfile ? "Complete" : "Missing"}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-[var(--color-text-muted)]">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>
@@ -375,7 +455,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
               <div>
                 <h3 className="font-heading text-base uppercase tracking-[0.08em] text-[var(--color-text)]">Edit user</h3>
                 <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Update name, email, and role.
+                  Update name, email, and type.
                 </p>
               </div>
               <button
@@ -428,7 +508,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
               </label>
 
               <label className="grid gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</span>
                 <select
                   value={editDraft.userType}
                   onChange={(e) =>
@@ -583,7 +663,7 @@ function UserTableSkeleton() {
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">ID</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
-            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
