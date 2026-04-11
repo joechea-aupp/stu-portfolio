@@ -49,6 +49,19 @@ function coerceBoolean(value: unknown): boolean {
   return false;
 }
 
+function parseAdministrationRole(value: unknown): "ADMIN_SUPER" | "ADMIN_MANAGER" | "ADMIN_STAFF" | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "ADMIN_SUPER" || normalized === "ADMIN_MANAGER" || normalized === "ADMIN_STAFF") {
+    return normalized;
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
   let body: unknown;
 
@@ -90,13 +103,17 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid email or password." }, { status: 401 });
   }
 
-  const activeRows = await prisma.$queryRaw<Array<{ is_active: unknown }>>`
-    SELECT is_active
+  const activeRows = await prisma.$queryRaw<
+    Array<{ is_active: unknown; administration_role: unknown; can_assign_roles: unknown }>
+  >`
+    SELECT is_active, administration_role, can_assign_roles
     FROM users
     WHERE id = ${user.id}
     LIMIT 1
   `;
   const isActive = activeRows.length > 0 ? coerceBoolean(activeRows[0].is_active) : false;
+  const administrationRole = activeRows.length > 0 ? parseAdministrationRole(activeRows[0].administration_role) : null;
+  const canAssignRoles = activeRows.length > 0 ? coerceBoolean(activeRows[0].can_assign_roles) : false;
 
   if (!isActive) {
     return Response.json({ error: "This account has been disabled." }, { status: 403 });
@@ -120,6 +137,8 @@ export async function POST(request: Request) {
       id: user.id,
       name: user.name,
       userType: user.user_type,
+      administrationRole,
+      canAssignRoles,
       hasProfile,
     },
   });

@@ -4,6 +4,7 @@ import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import { hashPassword } from "@/lib/password";
 
 type UserType = "STUDENT" | "ADMINISTRATION";
+type AdministrationRole = "ADMIN_SUPER" | "ADMIN_MANAGER" | "ADMIN_STAFF";
 type UserAction = "enable" | "disable" | "edit" | "resetPassword";
 
 interface UpdatePayload {
@@ -12,6 +13,8 @@ interface UpdatePayload {
   name?: string;
   email?: string;
   userType?: UserType;
+  administrationRole?: AdministrationRole;
+  canAssignRoles?: boolean;
   newPassword?: string;
 }
 
@@ -57,6 +60,102 @@ function isKnownPrismaErrorWithCode(error: unknown, code: string): boolean {
   );
 }
 
+function parseOptionalBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  return null;
+}
+
+function parseAdministrationRole(value: unknown): AdministrationRole | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "ADMIN_SUPER" || normalized === "ADMIN_MANAGER" || normalized === "ADMIN_STAFF") {
+    return normalized;
+  }
+
+  return null;
+}
+
+function parseInteger(value: unknown): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "bigint") {
+    return Number(value);
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
+async function getUserSecurity(userId: number): Promise<{
+  administrationRole: AdministrationRole | null;
+  canAssignRoles: boolean;
+}> {
+  const prisma = getPrismaClient();
+  const rows = await prisma.$queryRaw<Array<{ administration_role: unknown; can_assign_roles: unknown }>>`
+    SELECT administration_role, can_assign_roles
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
+
+  if (rows.length === 0) {
+    return { administrationRole: null, canAssignRoles: false };
+  }
+
+  return {
+    administrationRole: parseAdministrationRole(rows[0].administration_role),
+    canAssignRoles: coerceBoolean(rows[0].can_assign_roles),
+  };
+}
+
+async function getActiveRoleAssignerCount(): Promise<number> {
+  const prisma = getPrismaClient();
+  const rows = await prisma.$queryRaw<Array<{ total: unknown }>>`
+    SELECT COUNT(*) AS total
+    FROM users
+    WHERE user_type = 'ADMINISTRATION'
+      AND can_assign_roles = true
+      AND is_active = true
+  `;
+
+  return rows.length > 0 ? parseInteger(rows[0].total) : 0;
+}
+
+async function isBootstrapRoleAssigner(userId: number): Promise<boolean> {
+  const assignerCount = await getActiveRoleAssignerCount();
+  if (assignerCount > 0) {
+    return false;
+  }
+
+  const prisma = getPrismaClient();
+  const firstActiveAdminRows = await prisma.$queryRaw<Array<{ id: unknown }>>`
+    SELECT id
+    FROM users
+    WHERE user_type = 'ADMINISTRATION'
+      AND is_active = true
+    ORDER BY createdAt ASC, id ASC
+    LIMIT 1
+  `;
+
+  if (firstActiveAdminRows.length === 0) {
+    return false;
+  }
+
+  return parseInteger(firstActiveAdminRows[0].id) === userId;
+}
+
 async function getIsUserActive(userId: number): Promise<boolean> {
   const prisma = getPrismaClient();
   const rows = await prisma.$queryRaw<Array<{ is_active: unknown }>>`
@@ -100,7 +199,16 @@ async function requireAdminSession() {
     return { ok: false as const, response: Response.json({ error: "Forbidden." }, { status: 403 }) };
   }
 
-  return { ok: true as const, userId: user.id };
+  const security = await getUserSecurity(user.id);
+
+  const bootstrapCanAssignRoles = !security.canAssignRoles && (await isBootstrapRoleAssigner(user.id));
+
+  return {
+    ok: true as const,
+    userId: user.id,
+    administrationRole: security.administrationRole,
+    canAssignRoles: security.canAssignRoles || bootstrapCanAssignRoles,
+  };
 }
 
 async function buildUserSummary(userId: number) {
@@ -132,12 +240,15 @@ async function buildUserSummary(userId: number) {
   }
 
   const isActive = await getIsUserActive(user.id);
+  const security = await getUserSecurity(user.id);
 
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     userType: user.user_type,
+    administrationRole: security.administrationRole,
+    canAssignRoles: security.canAssignRoles,
     isActive,
     createdAt: user.createdAt,
     hasProfile: user.user_type === "ADMINISTRATION" ? Boolean(user.administration) : Boolean(user.student),
@@ -174,23 +285,42 @@ export async function GET() {
     },
   });
 
-  const activeRows = await prisma.$queryRaw<Array<{ id: number; is_active: unknown }>>`
-    SELECT id, is_active
+  const userSecurityRows = await prisma.$queryRaw<Array<{
+    id: number;
+    is_active: unknown;
+    administration_role: unknown;
+    can_assign_roles: unknown;
+  }>>`
+    SELECT id, is_active, administration_role, can_assign_roles
     FROM users
   `;
 
-  const activeByUserId = new Map<number, boolean>(
-    activeRows.map((row) => [row.id, coerceBoolean(row.is_active)]),
+  const securityByUserId = new Map<
+    number,
+    { isActive: boolean; administrationRole: AdministrationRole | null; canAssignRoles: boolean }
+  >(
+    userSecurityRows.map((row) => [
+      row.id,
+      {
+        isActive: coerceBoolean(row.is_active),
+        administrationRole: parseAdministrationRole(row.administration_role),
+        canAssignRoles: coerceBoolean(row.can_assign_roles),
+      },
+    ]),
   );
 
   return Response.json({
     currentUserId: auth.userId,
+    currentUserAdministrationRole: auth.administrationRole,
+    currentUserCanAssignRoles: auth.canAssignRoles,
     users: users.map((user) => ({
       id: user.id,
       name: user.name,
       email: user.email,
       userType: user.user_type,
-      isActive: activeByUserId.get(user.id) ?? false,
+      administrationRole: securityByUserId.get(user.id)?.administrationRole ?? null,
+      canAssignRoles: securityByUserId.get(user.id)?.canAssignRoles ?? false,
+      isActive: securityByUserId.get(user.id)?.isActive ?? false,
       createdAt: user.createdAt,
       hasProfile: user.user_type === "ADMINISTRATION" ? Boolean(user.administration) : Boolean(user.student),
     })),
@@ -238,6 +368,7 @@ export async function PATCH(request: Request) {
     select: {
       id: true,
       email: true,
+      user_type: true,
     },
   });
 
@@ -245,9 +376,22 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "User not found." }, { status: 404 });
   }
 
+  const targetSecurity = await getUserSecurity(target.id);
+  const targetIsActive = await getIsUserActive(target.id);
+
   if (action === "disable") {
     if (target.id === auth.userId) {
       return Response.json({ error: "You cannot disable your own account." }, { status: 400 });
+    }
+
+    if (targetSecurity.canAssignRoles && target.user_type === "ADMINISTRATION" && targetIsActive) {
+      const assignerCount = await getActiveRoleAssignerCount();
+      if (assignerCount <= 1) {
+        return Response.json(
+          { error: "Cannot disable the last active role-assignment administrator." },
+          { status: 400 },
+        );
+      }
     }
 
     await prisma.$executeRaw`
@@ -292,6 +436,11 @@ export async function PATCH(request: Request) {
   const trimmedEmail = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
   const normalizedUserType =
     typeof payload.userType === "string" ? payload.userType.trim().toUpperCase() : "";
+  const normalizedAdministrationRole =
+    typeof payload.administrationRole === "string"
+      ? payload.administrationRole.trim().toUpperCase()
+      : "";
+  const canAssignRolesUpdate = parseOptionalBoolean(payload.canAssignRoles);
 
   const updateData: {
     name?: string;
@@ -316,17 +465,100 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "userType must be STUDENT or ADMINISTRATION." }, { status: 400 });
     }
 
+    if (normalizedUserType !== target.user_type && !auth.canAssignRoles) {
+      return Response.json({ error: "You do not have permission to change account type." }, { status: 403 });
+    }
+
+    if (
+      target.user_type === "ADMINISTRATION" &&
+      targetSecurity.canAssignRoles &&
+      normalizedUserType === "STUDENT" &&
+      targetIsActive
+    ) {
+      const assignerCount = await getActiveRoleAssignerCount();
+      if (assignerCount <= 1) {
+        return Response.json(
+          { error: "Cannot remove role-assignment access from the last active administrator." },
+          { status: 400 },
+        );
+      }
+    }
+
     updateData.user_type = normalizedUserType as UserType;
   }
 
-  if (Object.keys(updateData).length === 0) {
+  if (
+    normalizedAdministrationRole &&
+    normalizedAdministrationRole !== "ADMIN_SUPER" &&
+    normalizedAdministrationRole !== "ADMIN_MANAGER" &&
+    normalizedAdministrationRole !== "ADMIN_STAFF"
+  ) {
+    return Response.json(
+      { error: "administrationRole must be ADMIN_SUPER, ADMIN_MANAGER, or ADMIN_STAFF." },
+      { status: 400 },
+    );
+  }
+
+  const hasSecurityFieldUpdate = Boolean(normalizedAdministrationRole) || canAssignRolesUpdate !== null;
+
+  if (hasSecurityFieldUpdate && !auth.canAssignRoles) {
+    return Response.json({ error: "You do not have permission to assign roles." }, { status: 403 });
+  }
+
+  const effectiveUserType = (updateData.user_type ?? target.user_type) as UserType;
+  if (hasSecurityFieldUpdate && effectiveUserType !== "ADMINISTRATION") {
+    return Response.json(
+      { error: "Roles and role-assignment permissions can only be assigned to administration accounts." },
+      { status: 400 },
+    );
+  }
+
+  const nextCanAssignRoles =
+    effectiveUserType === "ADMINISTRATION"
+      ? (canAssignRolesUpdate ?? targetSecurity.canAssignRoles)
+      : false;
+
+  if (
+    target.user_type === "ADMINISTRATION" &&
+    targetSecurity.canAssignRoles &&
+    !nextCanAssignRoles &&
+    targetIsActive
+  ) {
+    const assignerCount = await getActiveRoleAssignerCount();
+    if (assignerCount <= 1) {
+      return Response.json(
+        { error: "Cannot remove role-assignment access from the last active administrator." },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (Object.keys(updateData).length === 0 && !hasSecurityFieldUpdate) {
     return Response.json({ error: "Provide at least one editable field." }, { status: 400 });
   }
 
   try {
-    await prisma.users.update({
-      where: { id: target.id },
-      data: updateData,
+    await prisma.$transaction(async (tx) => {
+      if (Object.keys(updateData).length > 0) {
+        await tx.users.update({
+          where: { id: target.id },
+          data: updateData,
+        });
+      }
+
+      const nextAdministrationRole: AdministrationRole | null =
+        effectiveUserType === "ADMINISTRATION"
+          ? (normalizedAdministrationRole
+              ? (normalizedAdministrationRole as AdministrationRole)
+              : (targetSecurity.administrationRole ?? "ADMIN_STAFF"))
+          : null;
+
+      await tx.$executeRaw`
+        UPDATE users
+        SET administration_role = ${nextAdministrationRole},
+            can_assign_roles = ${nextCanAssignRoles}
+        WHERE id = ${target.id}
+      `;
     });
   } catch (error) {
     if (isKnownPrismaErrorWithCode(error, "P2002")) {

@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type ManagedUserType = "STUDENT" | "ADMINISTRATION";
+type AdministrationRole = "ADMIN_SUPER" | "ADMIN_MANAGER" | "ADMIN_STAFF";
 
 interface ManagedUser {
   id: number;
   name: string;
   email: string;
   userType: ManagedUserType;
+  administrationRole: AdministrationRole | null;
+  canAssignRoles: boolean;
   isActive: boolean;
   hasProfile: boolean;
   createdAt: string;
@@ -18,6 +21,7 @@ interface ApiPayload {
   users?: ManagedUser[];
   updated?: ManagedUser;
   currentUserId?: number;
+  currentUserCanAssignRoles?: boolean;
   error?: string;
 }
 
@@ -25,6 +29,8 @@ interface EditDraft {
   name: string;
   email: string;
   userType: ManagedUserType;
+  administrationRole: AdministrationRole;
+  canAssignRoles: boolean;
 }
 
 interface PasswordResetDraft {
@@ -40,6 +46,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
   const USERS_PER_PAGE = 8;
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [currentUserCanAssignRoles, setCurrentUserCanAssignRoles] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<number | null>(null);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
@@ -69,6 +76,8 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
         user.name,
         user.email,
         user.userType,
+        user.administrationRole ?? "",
+        user.canAssignRoles ? "can assign roles" : "cannot assign roles",
         user.isActive ? "enabled" : "disabled",
       ]
         .join(" ")
@@ -115,9 +124,11 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       setUsers(payload.users ?? []);
       setPage(1);
       setCurrentUserId(typeof payload.currentUserId === "number" ? payload.currentUserId : null);
+      setCurrentUserCanAssignRoles(Boolean(payload.currentUserCanAssignRoles));
     } catch {
       setFeedback("Unable to load users.");
       setUsers([]);
+      setCurrentUserCanAssignRoles(false);
     } finally {
       setLoading(false);
     }
@@ -179,6 +190,8 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       name: user.name,
       email: user.email,
       userType: user.userType,
+      administrationRole: user.administrationRole ?? "ADMIN_STAFF",
+      canAssignRoles: user.canAssignRoles,
     });
   }
 
@@ -215,6 +228,9 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
       name: editDraft.name,
       email: editDraft.email,
       userType: editDraft.userType,
+      administrationRole:
+        editDraft.userType === "ADMINISTRATION" ? editDraft.administrationRole : undefined,
+      canAssignRoles: editDraft.userType === "ADMINISTRATION" ? editDraft.canAssignRoles : undefined,
     });
 
     if (didUpdate) {
@@ -329,6 +345,8 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
+                  <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role permission</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
                   <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
@@ -363,6 +381,30 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
                         >
                           {user.userType}
                         </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        {user.userType === "ADMINISTRATION" ? (
+                          <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-indigo-700">
+                            {user.administrationRole ?? "ADMIN_STAFF"}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {user.userType === "ADMINISTRATION" ? (
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${
+                              user.canAssignRoles
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-slate-200 bg-slate-50 text-slate-600"
+                            }`}
+                          >
+                            {user.canAssignRoles ? "Can assign roles" : "No role assignment"}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">-</span>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <span
@@ -473,7 +515,7 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
               <div>
                 <h3 className="font-heading text-base uppercase tracking-[0.08em] text-[var(--color-text)]">Edit user</h3>
                 <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Update name, email, and type.
+                  Update name, email, type, and administration role permissions.
                 </p>
               </div>
               <button
@@ -545,6 +587,61 @@ export function AdministrationUserManager({ className }: AdministrationUserManag
                   <option value="ADMINISTRATION">ADMINISTRATION</option>
                 </select>
               </label>
+
+              {editDraft.userType === "ADMINISTRATION" ? (
+                <>
+                  <label className="grid gap-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Administration role</span>
+                    <select
+                      value={editDraft.administrationRole}
+                      onChange={(e) =>
+                        setEditDraft((current) =>
+                          current
+                            ? {
+                                ...current,
+                                administrationRole: e.target.value as AdministrationRole,
+                              }
+                            : current,
+                        )
+                      }
+                      disabled={!currentUserCanAssignRoles}
+                      className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] disabled:opacity-60"
+                    >
+                      <option value="ADMIN_SUPER">ADMIN_SUPER</option>
+                      <option value="ADMIN_MANAGER">ADMIN_MANAGER</option>
+                      <option value="ADMIN_STAFF">ADMIN_STAFF</option>
+                    </select>
+                  </label>
+
+                  <label className="flex items-center gap-2 border border-[var(--color-border)] bg-white px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={editDraft.canAssignRoles}
+                      onChange={(e) =>
+                        setEditDraft((current) =>
+                          current
+                            ? {
+                                ...current,
+                                canAssignRoles: e.target.checked,
+                              }
+                            : current,
+                        )
+                      }
+                      disabled={!currentUserCanAssignRoles}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                      Can assign roles to administration accounts
+                    </span>
+                  </label>
+                </>
+              ) : null}
+
+              {!currentUserCanAssignRoles ? (
+                <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                  Your account cannot assign administration roles or role permissions.
+                </p>
+              ) : null}
             </div>
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -675,13 +772,15 @@ function UserTableSkeleton() {
 
   return (
     <div className="mt-4 overflow-x-auto border border-[var(--color-border)]">
-      <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
+      <table className="w-full min-w-[1300px] border-collapse text-left text-sm">
         <thead className="bg-[var(--color-bg)]">
           <tr>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">ID</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Name</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Email</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role permission</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Status</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Profile</th>
             <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Created</th>
@@ -702,6 +801,12 @@ function UserTableSkeleton() {
               </td>
               <td className="px-3 py-3">
                 <div className="h-3 w-24 animate-pulse bg-[var(--color-border)]" />
+              </td>
+              <td className="px-3 py-3">
+                <div className="h-3 w-24 animate-pulse bg-[var(--color-border)]" />
+              </td>
+              <td className="px-3 py-3">
+                <div className="h-3 w-28 animate-pulse bg-[var(--color-border)]" />
               </td>
               <td className="px-3 py-3">
                 <div className="h-3 w-16 animate-pulse bg-[var(--color-border)]" />

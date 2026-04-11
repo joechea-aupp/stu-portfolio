@@ -62,6 +62,23 @@ function isKnownPrismaErrorWithCode(error: unknown, code: string): boolean {
   );
 }
 
+function parseInteger(value: unknown): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "bigint") {
+    return Number(value);
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
 export async function POST(request: Request) {
   let body: unknown;
 
@@ -92,6 +109,24 @@ export async function POST(request: Request) {
         user_type: true,
       },
     });
+
+    if (created.user_type === "ADMINISTRATION") {
+      const adminCountRows = await prisma.$queryRaw<Array<{ total: unknown }>>`
+        SELECT COUNT(*) AS total
+        FROM users
+        WHERE user_type = 'ADMINISTRATION'
+      `;
+      const adminCount = adminCountRows.length > 0 ? parseInteger(adminCountRows[0].total) : 0;
+      const administrationRole = adminCount <= 1 ? "ADMIN_SUPER" : "ADMIN_STAFF";
+      const canAssignRoles = adminCount <= 1;
+
+      await prisma.$executeRaw`
+        UPDATE users
+        SET administration_role = ${administrationRole},
+            can_assign_roles = ${canAssignRoles}
+        WHERE id = ${created.id}
+      `;
+    }
 
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, createSessionToken(created.id), {
