@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AcademicYear } from "@/types/student";
 import { DRAFT_KEY } from "@/app/onboard/draft";
@@ -64,18 +63,6 @@ export default function OnboardPage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] flex flex-col">
-      {/* Minimal header */}
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="mx-auto flex h-16 max-w-[1280px] items-center px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="font-heading text-[22px] font-bold uppercase tracking-[0.06em] text-[var(--color-accent)]"
-          >
-            StudentHub
-          </Link>
-        </div>
-      </header>
-
       <main className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-lg">
           {/* Card */}

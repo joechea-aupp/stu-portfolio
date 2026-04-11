@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useSyncExternalStore, useState } from "react";
+import { useMemo, useSyncExternalStore, useState } from "react";
 import { students } from "@/data/students";
-import type { FilterState, Student, ThemeName } from "@/types/student";
-import { TopNav } from "@/components/layout/TopNav";
+import type { FilterState, Student } from "@/types/student";
 import { FilterSidebar } from "@/components/filters/FilterSidebar";
 import { DirectoryHero } from "@/components/hero/DirectoryHero";
 import { DirectorySearch } from "@/components/search/DirectorySearch";
 import { StudentGrid } from "@/components/cards/StudentGrid";
-import { Footer } from "@/components/layout/Footer";
 import { MobileFilterDrawer } from "@/components/filters/MobileFilterDrawer";
 
 const initialFilters: FilterState = {
@@ -20,8 +18,6 @@ const initialFilters: FilterState = {
 const PAGE_SIZE = 10;
 const PORTFOLIO_VIEWS_STORAGE_KEY = "portfolio-views";
 const KUDOS_STORAGE_KEY = "portfolio-kudos";
-
-const defaultTheme: ThemeName = "classic";
 
 function subscribePortfolioViews(onStoreChange: () => void) {
   if (typeof window === "undefined") {
@@ -105,16 +101,6 @@ function matchesQuery(student: Student, query: string) {
 }
 
 export function DirectoryApp() {
-  const [theme, setTheme] = useState<ThemeName>(() => {
-    if (typeof window === "undefined") {
-      return defaultTheme;
-    }
-
-    const stored = window.localStorage.getItem("directory-theme");
-    return stored === "classic" || stored === "slate" || stored === "sunrise"
-      ? stored
-      : defaultTheme;
-  });
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -141,11 +127,6 @@ export function DirectoryApp() {
     setFilters(updater);
     setPage(1);
   };
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem("directory-theme", theme);
-  }, [theme]);
 
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
@@ -200,8 +181,6 @@ export function DirectoryApp() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
-      <TopNav theme={theme} onThemeChange={setTheme} />
-
       <div className="mx-auto flex w-full max-w-[1280px] flex-1 border-x border-[var(--color-border)]">
         <FilterSidebar
           filters={filters}
@@ -276,8 +255,6 @@ export function DirectoryApp() {
             </div>
           )}        </main>
       </div>
-
-      <Footer />
 
       <MobileFilterDrawer
         isOpen={isDrawerOpen}

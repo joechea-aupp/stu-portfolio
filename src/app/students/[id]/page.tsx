@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { students } from "@/data/students";
 import { PortfolioStats } from "@/components/cards/PortfolioStats";
-import { Footer } from "@/components/layout/Footer";
 import type { SocialLinks } from "@/types/student";
 
 const SOCIAL_META: {
@@ -169,8 +168,7 @@ export default async function StudentPortfolioPage({
   };
 
   return (
-    <>
-      <main className="min-h-screen bg-[var(--color-bg)] px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[var(--color-bg)] px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-5xl">
         <Link
           href="/"
@@ -442,7 +440,5 @@ export default async function StudentPortfolioPage({
         </section>
         </div>
       </main>
-      <Footer />
-    </>
   );
 }

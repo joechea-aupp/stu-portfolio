@@ -126,27 +126,16 @@ export default function OnboardProfilePage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] flex flex-col">
-      {/* Header */}
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="font-heading text-[22px] font-bold uppercase tracking-[0.06em] text-[var(--color-accent)]"
-          >
-            StudentHub
-          </Link>
-          <Link
-            href="/onboard"
-            className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition"
-          >
-            ← Back
-          </Link>
-        </div>
-      </header>
-
       <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
+        <Link
+          href="/onboard"
+          className="inline-block border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)] transition hover:text-[var(--color-text)]"
+        >
+          ← Back
+        </Link>
+
         {/* Identity summary */}
-        <div className="mb-8 flex items-center gap-4">
+        <div className="mb-8 mt-6 flex items-center gap-4">
           <div className="relative h-16 w-16 flex-shrink-0 border-[2px] border-[var(--color-brand)] overflow-hidden bg-[var(--color-bg)]">
             {draft.imageUrl && (
               <Image src={draft.imageUrl} alt={draft.name} fill className="object-cover" />
