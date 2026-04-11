@@ -6,6 +6,7 @@ import { FilterSidebar } from "@/components/filters/FilterSidebar";
 import { DirectoryHero } from "@/components/hero/DirectoryHero";
 import { DirectorySearch } from "@/components/search/DirectorySearch";
 import { StudentGrid } from "@/components/cards/StudentGrid";
+import { StudentCardSkeleton } from "@/components/cards/StudentCardSkeleton";
 import { MobileFilterDrawer } from "@/components/filters/MobileFilterDrawer";
 import { PageLayout } from "@/components/layout/PageLayout";
 
@@ -69,6 +70,7 @@ export function DirectoryApp() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [students, setStudents] = useState<Student[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -95,6 +97,8 @@ export function DirectoryApp() {
         setStudents(nextStudents);
       } catch {
         // Keep current UI state when request fails.
+      } finally {
+        setIsLoading(false);
       }
     })();
 
@@ -265,10 +269,22 @@ export function DirectoryApp() {
         />
 
         <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-          Showing {filteredStudents.length} student{filteredStudents.length === 1 ? "" : "s"}
+          {isLoading ? (
+            <span className="inline-block h-3 w-32 animate-pulse rounded bg-[var(--color-border)]" />
+          ) : (
+            <>Showing {filteredStudents.length} student{filteredStudents.length === 1 ? "" : "s"}</>
+          )}
         </div>
 
-        {filteredStudents.length > 0 ? (
+        {isLoading ? (
+          <section className="pt-8 pb-12">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }, (_, i) => (
+                <StudentCardSkeleton key={i} />
+              ))}
+            </div>
+          </section>
+        ) : filteredStudents.length > 0 ? (
           <StudentGrid
             students={paginatedStudents}
             portfolioViews={portfolioViews}
