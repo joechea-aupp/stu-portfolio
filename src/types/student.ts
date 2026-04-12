@@ -10,7 +10,10 @@ export type ThemeName = "classic" | "slate" | "sunrise";
 
 export interface Verifier {
   name: string;
-  role: string;
+  role?: string;
+  title?: string;
+  occupation?: string;
+  userId?: number;
 }
 
 export interface TimelineItem {

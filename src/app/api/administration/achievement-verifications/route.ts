@@ -15,6 +15,22 @@ interface ReviewPayload {
   rejectionReason?: string;
 }
 
+function formatAdministrationTitle(value: string | null | undefined): string | undefined {
+  if (value === "MR") {
+    return "Mr.";
+  }
+
+  if (value === "MS") {
+    return "Ms.";
+  }
+
+  if (value === "DR") {
+    return "Dr.";
+  }
+
+  return undefined;
+}
+
 function parseSessionUserId(rawCookie: string | undefined): number | null {
   if (!rawCookie) {
     return null;
@@ -40,6 +56,12 @@ async function requireVerifierAdminSession() {
       name: true,
       user_type: true,
       is_active: true,
+      administration: {
+        select: {
+          title: true,
+          occupation: true,
+        },
+      },
     },
   });
 
@@ -66,6 +88,8 @@ async function requireVerifierAdminSession() {
     ok: true as const,
     userId: user.id,
     userName: user.name,
+    titleLabel: formatAdministrationTitle(user.administration?.title),
+    occupation: user.administration?.occupation ?? undefined,
     roleLabel: snapshot.roles[0]?.name ?? "Administration",
   };
 }
@@ -275,7 +299,10 @@ export async function PATCH(request: Request) {
 
     if (payload.action === "approve") {
       nextEntry.verifiedBy = {
+        userId: auth.userId,
         name: auth.userName,
+        title: auth.titleLabel,
+        occupation: auth.occupation ?? auth.roleLabel,
         role: auth.roleLabel,
       };
     } else {

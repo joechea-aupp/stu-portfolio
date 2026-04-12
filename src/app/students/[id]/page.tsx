@@ -7,6 +7,51 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { getPrismaClient } from "@/lib/prisma";
 import type { AcademicYear, SocialLinks, Student, TimelineItem } from "@/types/student";
 
+function formatAdministrationTitle(value: string | null | undefined): string | undefined {
+  if (value === "MR") {
+    return "Mr.";
+  }
+
+  if (value === "MS") {
+    return "Ms.";
+  }
+
+  if (value === "DR") {
+    return "Dr.";
+  }
+
+  return undefined;
+}
+
+function parseVerifiedBy(value: unknown): TimelineItem["verifiedBy"] {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const name = typeof candidate.name === "string" ? candidate.name : "";
+
+  if (!name) {
+    return undefined;
+  }
+
+  return {
+    name,
+    role: typeof candidate.role === "string" ? candidate.role : undefined,
+    title: typeof candidate.title === "string" ? candidate.title : undefined,
+    occupation: typeof candidate.occupation === "string" ? candidate.occupation : undefined,
+    userId: typeof candidate.userId === "number" && Number.isInteger(candidate.userId) ? candidate.userId : undefined,
+  };
+}
+
+function formatVerifiedByName(verifiedBy: NonNullable<TimelineItem["verifiedBy"]>): string {
+  return verifiedBy.title ? `${verifiedBy.title} ${verifiedBy.name}` : verifiedBy.name;
+}
+
+function formatVerifiedByPosition(verifiedBy: NonNullable<TimelineItem["verifiedBy"]>): string {
+  return verifiedBy.occupation ?? verifiedBy.role ?? "Administration";
+}
+
 const SOCIAL_META: {
   key: keyof SocialLinks;
   label: string;
@@ -91,20 +136,9 @@ function asTimelineItems(value: unknown): TimelineItem[] {
       timelineItem.details = candidate.details;
     }
 
-    const verifiedByValue = candidate.verifiedBy;
-    if (verifiedByValue && typeof verifiedByValue === "object") {
-      const name =
-        typeof (verifiedByValue as Record<string, unknown>).name === "string"
-          ? ((verifiedByValue as Record<string, unknown>).name as string)
-          : "";
-      const role =
-        typeof (verifiedByValue as Record<string, unknown>).role === "string"
-          ? ((verifiedByValue as Record<string, unknown>).role as string)
-          : "";
-
-      if (name && role) {
-        timelineItem.verifiedBy = { name, role };
-      }
+    const verifiedBy = parseVerifiedBy(candidate.verifiedBy);
+    if (verifiedBy) {
+      timelineItem.verifiedBy = verifiedBy;
     }
 
     items.push(timelineItem);
@@ -155,6 +189,62 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
       return null;
     }
 
+    const approvedVerifications = await prisma.achievementVerificationRequest.findMany({
+      where: {
+        student_id: dbStudent.id,
+        status: "APPROVED",
+        reviewed_by_id: { not: null },
+      },
+      select: {
+        achievement_index: true,
+        reviewed_by_id: true,
+        reviewed_by: {
+          select: {
+            name: true,
+            administration: {
+              select: {
+                title: true,
+                occupation: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ reviewed_at: "desc" }, { id: "desc" }],
+    });
+
+    const achievements = asTimelineItems(dbStudent.achievements);
+    const verifierByAchievementIndex = new Map<number, NonNullable<TimelineItem["verifiedBy"]>>();
+
+    for (const verification of approvedVerifications) {
+      if (!verification.reviewed_by || verifierByAchievementIndex.has(verification.achievement_index)) {
+        continue;
+      }
+
+      verifierByAchievementIndex.set(verification.achievement_index, {
+        userId: verification.reviewed_by_id ?? undefined,
+        name: verification.reviewed_by.name,
+        title: formatAdministrationTitle(verification.reviewed_by.administration?.title),
+        occupation: verification.reviewed_by.administration?.occupation ?? undefined,
+      });
+    }
+
+    const enrichedAchievements = achievements.map((achievement, index) => {
+      const approvedVerifier = verifierByAchievementIndex.get(index);
+
+      if (!approvedVerifier) {
+        return achievement;
+      }
+
+      return {
+        ...achievement,
+        verifiedBy: {
+          ...achievement.verifiedBy,
+          ...approvedVerifier,
+        },
+      };
+    });
+
     return {
       id: String(dbStudent.id),
       name: dbStudent.user.name,
@@ -165,7 +255,7 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
       skills: asStringArray(dbStudent.skills),
       available: dbStudent.available_for_project,
       projects: asTimelineItems(dbStudent.projects),
-      achievements: asTimelineItems(dbStudent.achievements),
+      achievements: enrichedAchievements,
       summary: dbStudent.summary ?? "",
       imageUrl:
         dbStudent.image_url && dbStudent.image_url.trim().length > 0
@@ -439,7 +529,7 @@ export default async function StudentPortfolioPage({
                               <p className="text-sm font-semibold text-[var(--color-text)]">{achievement.title}</p>
                               {achievement.verifiedBy && (
                                 <span
-                                  title={`Verified by ${achievement.verifiedBy.name}`}
+                                  title={`Verified by ${formatVerifiedByName(achievement.verifiedBy)}`}
                                   className="mt-0.5 shrink-0 rounded-full bg-[#EFBF04] p-0.5 text-[oklch(20%_0_0)]"
                                   aria-label="Verified"
                                 >
@@ -458,9 +548,9 @@ export default async function StudentPortfolioPage({
                                   <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
                                   <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                                 </svg>
-                                {achievement.verifiedBy.name}
-                                <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">·</span>
-                                <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">{achievement.verifiedBy.role}</span>
+                                {formatVerifiedByName(achievement.verifiedBy)}
+                                <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">-</span>
+                                <span className="text-[var(--color-text-muted)] normal-case tracking-normal font-normal">{formatVerifiedByPosition(achievement.verifiedBy)}</span>
                               </p>
                             )}
                           </div>

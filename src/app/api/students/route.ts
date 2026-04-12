@@ -2,6 +2,27 @@ import { Classification } from "@prisma/client";
 import type { AcademicYear, SocialLinks, Student, TimelineItem } from "@/types/student";
 import { getPrismaClient } from "@/lib/prisma";
 
+function parseVerifiedBy(value: unknown): TimelineItem["verifiedBy"] {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const name = typeof candidate.name === "string" ? candidate.name : "";
+
+  if (!name) {
+    return undefined;
+  }
+
+  return {
+    name,
+    role: typeof candidate.role === "string" ? candidate.role : undefined,
+    title: typeof candidate.title === "string" ? candidate.title : undefined,
+    occupation: typeof candidate.occupation === "string" ? candidate.occupation : undefined,
+    userId: typeof candidate.userId === "number" && Number.isInteger(candidate.userId) ? candidate.userId : undefined,
+  };
+}
+
 function toAcademicYear(classification: Classification): AcademicYear {
   return classification.toLowerCase() as AcademicYear;
 }
@@ -44,20 +65,9 @@ function asTimelineItems(value: unknown): TimelineItem[] {
       timelineItem.details = candidate.details;
     }
 
-    const verifiedByValue = candidate.verifiedBy;
-    if (verifiedByValue && typeof verifiedByValue === "object") {
-      const name =
-        typeof (verifiedByValue as Record<string, unknown>).name === "string"
-          ? ((verifiedByValue as Record<string, unknown>).name as string)
-          : "";
-      const role =
-        typeof (verifiedByValue as Record<string, unknown>).role === "string"
-          ? ((verifiedByValue as Record<string, unknown>).role as string)
-          : "";
-
-      if (name && role) {
-        timelineItem.verifiedBy = { name, role };
-      }
+    const verifiedBy = parseVerifiedBy(candidate.verifiedBy);
+    if (verifiedBy) {
+      timelineItem.verifiedBy = verifiedBy;
     }
 
     items.push(timelineItem);
