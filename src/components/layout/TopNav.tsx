@@ -337,9 +337,9 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
               </>
             )
           ) : currentUser ? (
-            <div className="relative" ref={accountMenuRef}>
+            <div className="relative flex items-center gap-2" ref={accountMenuRef}>
               {canVerifyAchievements ? (
-                <div className="relative mr-2 inline-block" ref={notificationPanelRef}>
+                <div className="relative flex shrink-0" ref={notificationPanelRef}>
                   <button
                     type="button"
                     onClick={() => setNotificationOpen((open) => !open)}
@@ -428,7 +428,7 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
                 aria-expanded={accountMenuOpen}
                 aria-haspopup="menu"
                 aria-label="Open account menu"
-                className="inline-flex h-9 items-center gap-2 border border-[var(--color-border)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                className="inline-flex h-9 shrink-0 items-center gap-2 border border-[var(--color-border)] px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               >
                 <span className="hidden sm:inline">{currentUser.name}</span>
                 <svg
