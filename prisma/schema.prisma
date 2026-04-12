@@ -153,6 +153,7 @@ model UserRole {
   role      Role     @relation(fields: [role_id], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
+  @@unique([user_id])
   @@unique([user_id, role_id])
   @@map("user_roles")
 }
