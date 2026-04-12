@@ -116,6 +116,7 @@ export default function OnboardProfilePage() {
         const response = await fetch("/api/onboard", {
           method: "GET",
           cache: "no-store",
+          credentials: "include",
           signal: controller.signal,
         });
 
@@ -204,6 +205,7 @@ export default function OnboardProfilePage() {
         const response = await fetch("/api/onboard/achievement-verifications/verifiers", {
           method: "GET",
           cache: "no-store",
+          credentials: "include",
         });
 
         if (!active || !response.ok) {
@@ -422,6 +424,7 @@ export default function OnboardProfilePage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           achievementIndex,
           verifierUserId: selectedVerifier,
@@ -435,6 +438,11 @@ export default function OnboardProfilePage() {
       };
 
       if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/login");
+          return;
+        }
+
         setSaveFeedback(payload.error ?? "Unable to submit verification request.");
         return;
       }
@@ -521,6 +529,17 @@ export default function OnboardProfilePage() {
     refreshAfterSave = false,
     showSuccessFeedback = true,
   ): Promise<boolean> {
+    if (!draft.major || !draft.graduationYear || !draft.year) {
+      setSaveFeedback("Please fill in major, graduation year, and classification.");
+      return false;
+    }
+
+    const graduationYearInt = Number.parseInt(String(draft.graduationYear), 10);
+    if (!Number.isFinite(graduationYearInt) || graduationYearInt < 2000 || graduationYearInt > 2100) {
+      setSaveFeedback("Graduation year must be a number between 2000 and 2100.");
+      return false;
+    }
+
     setSaving(true);
     setSaveFeedback(null);
 
@@ -537,6 +556,7 @@ export default function OnboardProfilePage() {
       const response = await fetch("/api/onboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           major: updated.major,
           graduationYear: updated.graduationYear,
@@ -554,6 +574,11 @@ export default function OnboardProfilePage() {
       const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/login");
+          return false;
+        }
+
         setSaveFeedback(payload.error ?? "Failed to save profile.");
         return false;
       }
