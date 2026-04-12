@@ -1,9 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { PortfolioShareButton } from "@/components/cards/PortfolioShareButton";
 import { PortfolioStats } from "@/components/cards/PortfolioStats";
 import { PortfolioViewTracker } from "@/components/cards/PortfolioViewTracker";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { APP_NAME, buildAbsoluteUrl } from "@/lib/app-config";
 import { getPrismaClient } from "@/lib/prisma";
 import { resolveStudentImageUrl } from "@/lib/profile-images";
 import type { AcademicYear, SocialLinks, Student, TimelineItem } from "@/types/student";
@@ -98,6 +101,16 @@ const SOCIAL_META: {
 
 const ACHIEVEMENTS_PER_PAGE = 5;
 const PROJECTS_PER_PAGE = 5;
+
+function getShareDescription(student: Student): string {
+  const summary = student.summary.trim();
+
+  if (!summary) {
+    return `${student.name} - ${student.major} student portfolio on ${APP_NAME}.`;
+  }
+
+  return summary.length > 180 ? `${summary.slice(0, 177)}...` : summary;
+}
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -284,6 +297,56 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
   }
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const student = await getDatabaseStudentById(id);
+
+  if (!student) {
+    return {
+      title: `Portfolio Not Found | ${APP_NAME}`,
+      description: `The requested student portfolio could not be found on ${APP_NAME}.`,
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const title = `${student.name} | ${APP_NAME}`;
+  const description = getShareDescription(student);
+  const profileUrl = `/students/${student.id}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: profileUrl,
+    },
+    openGraph: {
+      title,
+      description,
+      url: profileUrl,
+      type: "profile",
+      images: [
+        {
+          url: buildAbsoluteUrl(student.imageUrl),
+          alt: `${student.name} profile image`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [buildAbsoluteUrl(student.imageUrl)],
+    },
+  };
+}
+
 export default async function StudentPortfolioPage({
   params,
   searchParams,
@@ -351,6 +414,8 @@ export default async function StudentPortfolioPage({
     startAchievementIndex,
     startAchievementIndex + ACHIEVEMENTS_PER_PAGE,
   );
+  const shareDescription = getShareDescription(student);
+  const shareUrl = buildAbsoluteUrl(`/students/${student.id}`);
 
   const buildProjectPageHref = (targetPage: number) => {
     const params = new URLSearchParams();
@@ -399,12 +464,15 @@ export default async function StudentPortfolioPage({
   return (
     <PageLayout width="lg">
         <PortfolioViewTracker studentId={student.id} />
-        <Link
-          href="/"
-          className="inline-block border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white"
-        >
-          Back to directory
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="inline-block border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-brand)] transition hover:bg-[var(--color-brand)] hover:text-white"
+          >
+            Back to directory
+          </Link>
+          <PortfolioShareButton title={student.name} description={shareDescription} url={shareUrl} />
+        </div>
 
         <section
           className={`${achievementTierClass} mt-5 overflow-hidden border-2 border-[var(--color-border-strong)] bg-[var(--color-surface)]`}
