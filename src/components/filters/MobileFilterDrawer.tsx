@@ -10,10 +10,11 @@ interface MobileFilterDrawerProps {
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;
+  isLoggedIn?: boolean;
   isLoading?: boolean;
 }
 
-export function MobileFilterDrawer({ isOpen, onClose, ...panelProps }: MobileFilterDrawerProps) {
+export function MobileFilterDrawer({ isOpen, onClose, isLoggedIn, ...panelProps }: MobileFilterDrawerProps) {
   if (!isOpen) {
     return null;
   }
@@ -41,7 +42,7 @@ export function MobileFilterDrawer({ isOpen, onClose, ...panelProps }: MobileFil
         </div>
 
         <div className="mb-6">
-          <SubmitPortfolioCard />
+          <SubmitPortfolioCard isLoggedIn={isLoggedIn} />
         </div>
         <FilterPanel {...panelProps} />
       </div>

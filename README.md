@@ -1,182 +1,209 @@
 # Student Portfolio Directory
 
-A responsive student portfolio directory built with Next.js. Features instant filtering, mobile filter drawer, a multi-theme color system, student leaderboard, and onboarding flow. Backend is MySQL, all services run via Docker.
+A student portfolio directory built with Next.js, Prisma, and MySQL. The app includes a searchable student directory, leaderboard, onboarding flow, login/create-account pages, and role-aware administration foundations.
+
+This README is written for contributors first: how to get the app running, where the main code lives, and what to do before opening a PR.
 
 ## Stack
 
-- **Next.js 16** (App Router, standalone output)
-- **TypeScript**
-- **Tailwind CSS v4**
-- **Prisma ORM**
-- **MySQL 8.4**
-- **Docker / Docker Compose**
+- Next.js 16 with the App Router
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- Prisma 7 with MariaDB adapter
+- MySQL 8.4
+- Docker Compose for local development
 
 ## Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2+
-- Node.js 20+ (only needed for local dev outside Docker)
+- Docker with Compose v2+
+- Node.js 20+ and npm if you want to run the app outside Docker
 
----
+## Quick Start
 
-## Getting Started (Docker — recommended)
+### Recommended workflow: Docker Compose
 
-This is the preferred workflow so everyone uses the same database.
+This is the easiest path for a new contributor because the app and database start with the same settings every time.
 
 ```bash
-# 1. Clone the repo
 git clone https://github.com/joechea-aupp/stu-portfolio.git
 cd stu-portfolio
-
-# 2. Create your local env file
 cp .env.example .env
-# Edit .env and set secure passwords before continuing
 
-# 3. Build and start all services
+# Start the app and database
 docker compose up --build
 ```
 
-- App: http://localhost:3000
-- MySQL: `localhost:3306` (use the credentials from your `.env`)
-
-Changes to source files require a rebuild (`docker compose up --build`) because the app runs from a compiled standalone image.
-
-### Stopping services
+In a second terminal, apply the existing Prisma migrations and seed demo data:
 
 ```bash
-docker compose down          # stop containers, keep data volume
-docker compose down -v       # stop containers AND erase the database volume
+docker compose exec app npx prisma migrate deploy
+docker compose exec app npm run db:seed
 ```
 
----
+Open http://localhost:3000.
 
-## Local Dev (without Docker)
+What to expect:
 
-Useful for fast iteration on the frontend. You still need the MySQL container running for any database work.
+- App: http://localhost:3000
+- MySQL: localhost:3306
+- Source changes hot-reload in Docker because the repository is bind-mounted into the app container
+
+When you need to stop or reset the stack:
 
 ```bash
-# Start only the database
-docker compose up db -d
+docker compose down
+docker compose down -v
+```
 
-# Install dependencies and run the dev server
+Use `down -v` only when you want to delete the MySQL data volume and start fresh.
+
+### Alternative workflow: App on host, DB in Docker
+
+This is useful if you prefer running Next.js directly on your machine while keeping MySQL containerized.
+
+```bash
+cp .env.example .env
+docker compose up db -d
 npm install
+npm run db:generate
+npx prisma migrate deploy
+npm run db:seed
 npm run dev
 ```
 
-Open http://localhost:3000. Hot-reload is active in this mode.
-
----
+Open http://localhost:3000.
 
 ## Environment Variables
 
-Copy `.env.example` to `.env`. Never commit `.env`.
+Copy `.env.example` to `.env`. Do not commit `.env`.
 
-| Variable | Description |
-|---|---|
-| `MYSQL_ROOT_PASSWORD` | Root password for MySQL |
-| `MYSQL_DATABASE` | Database name |
-| `MYSQL_USER` | App database user |
-| `MYSQL_PASSWORD` | App database user password |
-| `DATABASE_URL` | Prisma/MySQL connection string used by local Node.js runtime (for local host access on MySQL 8, include `?allowPublicKeyRetrieval=true`) |
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `MYSQL_ROOT_PASSWORD` | Yes | MySQL root password |
+| `MYSQL_DATABASE` | Yes | Database name |
+| `MYSQL_USER` | Yes | App database user |
+| `MYSQL_PASSWORD` | Yes | App database user password |
+| `DATABASE_URL` | Yes for host-run app | Prisma connection string used when Node.js runs on your machine |
+| `NEXT_PUBLIC_APP_URL` | Yes | Base URL used for canonical/Open Graph links |
+| `NEXT_PUBLIC_APP_NAME` | No | Overrides the default UI brand name (`EagleHUB`) |
+| `SEED_USER_PASSWORD` | No | Overrides the default password used by the seed script |
 
-Inside Docker, `DATABASE_URL` is assembled automatically in `docker-compose.yml`.
-For local development outside Docker, set `DATABASE_URL` in `.env` (see `.env.example`).
+Notes:
 
----
+- In Docker, the app container builds its own `DATABASE_URL` from the Compose service settings.
+- For host-machine Prisma access against MySQL 8, keep `?allowPublicKeyRetrieval=true` in `DATABASE_URL`.
 
-## Prisma ORM
+## Common Commands
 
-After your `.env` is configured and MySQL is running:
+Host workflow:
 
 ```bash
-# Generate Prisma Client
+npm run dev
+npm run lint
+npm run build
 npm run db:generate
-
-# Create/apply migrations during development
-npm run db:migrate
-
-# Push schema without migrations (optional)
+npm run db:migrate -- --name your_migration_name
 npm run db:push
-
-# Seed database from mock data (src/data/students.ts)
 npm run db:seed
-
-# Open Prisma Studio
 npm run db:studio
 ```
 
-The seed script creates one `users` record plus one linked `students` record per item in `src/data/students.ts`.
+Docker workflow for one-off commands against the running app container:
 
-- Seed user email format: `<mock-id>@seed.local`
-- Seed password env override: `SEED_USER_PASSWORD`
-- Default seed password (if not set): `ChangeMe123!`
-
----
-
-## Database Initialization
-
-SQL files in `db/init/` are executed automatically when the MySQL container is first created (alphabetical order). Use this for schema and seed data:
-
-```
-db/init/
-  01_schema.sql   ← CREATE TABLE statements
-  02_seed.sql     ← INSERT seed data
+```bash
+docker compose exec app npm run lint
+docker compose exec app npm run build
+docker compose exec app npm run db:generate
+docker compose exec app npm run db:migrate -- --name your_migration_name
+docker compose exec app npm run db:push
+docker compose exec app npm run db:seed
+docker compose exec app npm run db:studio
 ```
 
-To reset and re-run init scripts, remove the volume:
+Guidance:
+
+- Use `db:migrate` when you changed `prisma/schema.prisma` and want a real migration checked into source control.
+- Use `db:push` only for disposable local schema syncing when you do not want a migration file.
+- `prisma migrate dev` is interactive, so run it from a normal terminal session.
+
+## Fresh Database Setup
+
+The `db/init/` directory is only used for MySQL container bootstrapping tasks such as granting privileges for Prisma's shadow database. It does not replace Prisma migrations.
+
+For a clean local database:
 
 ```bash
 docker compose down -v
-docker compose up db -d
+docker compose up -d db app
+docker compose exec app npx prisma migrate deploy
+docker compose exec app npm run db:seed
 ```
 
----
+## Seed Data
 
-## Project Structure
+The seed script reads from `src/data/students.ts` and creates:
 
-```
+- one `users` record per mock student
+- one linked `Student` record per seeded user
+- the predefined majors used by the app
+
+Seeded login details:
+
+- Email format: `<student-id>@seed.local`
+- Password: `ChangeMe123!` by default
+- Override password with `SEED_USER_PASSWORD`
+
+## Project Map
+
+Use this as a starting point when deciding where to make changes.
+
+```text
 src/
-  app/                      # Next.js App Router pages
-    page.tsx                # Directory home
-    leaderboard/page.tsx
-    onboard/page.tsx
-    students/[id]/page.tsx
-  components/
-    cards/                  # StudentCard, StudentGrid, SubmitPortfolioCard, PortfolioStats
-    directory/              # DirectoryApp (state + wiring)
-    filters/                # FilterPanel, FilterSidebar, MobileFilterDrawer
-    hero/                   # DirectoryHero
-    layout/                 # TopNav, Footer
-    leaderboard/            # LeaderboardApp
-    onboard/                # OnboardModal
-    search/                 # DirectorySearch
-    theme/                  # ThemeSwitcher
-  data/
-    students.ts             # Mock data (replace with DB queries)
-  types/
-    student.ts              # Shared TypeScript types
+  app/                Next.js routes, layouts, and API handlers
+  components/         Reusable UI grouped by feature
+  data/               Mock/demo student data used by the seed flow
+  lib/                Prisma client, auth/session helpers, app config, RBAC helpers
+  types/              Shared TypeScript types
+prisma/
+  schema.prisma       Database schema
+  migrations/         Checked-in migration history
+  seed.ts             Seed script
 db/
-  init/                     # SQL init scripts for MySQL
+  init/               MySQL container init hooks
+public/
+  images/             Static images
+  uploads/avatars/    Uploaded avatar assets
 ```
 
----
+If you are new to the codebase, these are the usual entry points:
 
-## Theme Customization
+- Directory UI: `src/app/page.tsx` and `src/components/directory/`
+- Login and account creation: `src/app/login/` and `src/app/create-account/`
+- Leaderboard: `src/app/leaderboard/` and `src/components/leaderboard/`
+- Student data model: `prisma/schema.prisma`, `src/lib/prisma.ts`, and `src/types/student.ts`
 
-Theme colors are CSS custom properties in [src/app/globals.css](src/app/globals.css).
+## UI and Theme Notes
 
-1. Edit tokens under `[data-theme="classic"]`, `[data-theme="slate"]`, or `[data-theme="sunrise"]`.
-2. Use `var(--color-...)` tokens in components — never hard-code colors.
-3. Add a new theme: create a `[data-theme="your-name"]` block, then register the name in `src/types/student.ts` and `src/components/theme/ThemeSwitcher.tsx`.
+Theme tokens live in `src/app/globals.css`.
 
-Student card achievement tiers (bronze / silver / gold) use animated gradient borders defined in `globals.css`.
+- Update CSS custom properties inside the existing theme blocks
+- Prefer shared theme tokens over hard-coded colors in components
+- Register any new theme consistently in both the styling and UI selector logic
 
----
+## Contributing Checklist
 
-## Quality Checks
+Before opening a PR:
 
-Run these before opening a PR:
+1. Pull the latest changes from the working branch.
+2. Apply migrations or create a new migration if you changed the Prisma schema.
+3. Reseed locally if your change depends on demo data.
+4. Run `npm run lint`.
+5. Run `npm run build`.
+6. Update the README or other docs if you changed setup, scripts, or contributor workflow.
 
-```bash
-npm run lint
-npm run build
-```
+## Troubleshooting
+
+- App starts but data is missing: run the migrations, then run the seed script.
+- Prisma cannot connect from the host: verify `.env` has the correct `DATABASE_URL` and includes `allowPublicKeyRetrieval=true`.
+- Docker app is running but dependency changes are not reflected: run `docker compose exec app npm ci`, or recreate the app container and its `app-node-modules` volume.

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
+import { APP_NAME } from "@/lib/app-config";
 import type { ThemeName } from "@/types/student";
 
 const navItems = [
@@ -320,7 +321,7 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
           href="/"
           className="font-heading text-[24px] font-bold uppercase tracking-[0.06em] text-[var(--color-accent)]"
         >
-          StudentHub
+          {APP_NAME}
         </Link>
 
         <nav className="ml-4 hidden items-center gap-8 md:flex" aria-label="Primary">

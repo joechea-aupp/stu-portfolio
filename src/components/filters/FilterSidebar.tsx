@@ -8,15 +8,16 @@ interface FilterSidebarProps {
   onToggleMajor: (major: string) => void;
   onAvailabilityChange: (availableOnly: boolean) => void;
   onReset: () => void;
+  isLoggedIn?: boolean;
   isLoading?: boolean;
 }
 
-export function FilterSidebar(props: FilterSidebarProps) {
+export function FilterSidebar({ isLoggedIn, ...props }: FilterSidebarProps) {
   return (
     <aside className="hidden w-[290px] border-r border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-7 lg:block">
       <div className="sticky top-4">
         <div className="mb-6">
-          <SubmitPortfolioCard />
+          <SubmitPortfolioCard isLoggedIn={isLoggedIn} />
         </div>
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
           Filters

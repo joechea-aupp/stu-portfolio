@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { APP_NAME } from "@/lib/app-config";
 
 export default function CreateAccountPage() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function CreateAccountPage() {
     <PageLayout width="sm" centered>
       <div className="border-[3px] border-[var(--color-brand)] bg-[var(--color-surface)]">
         <div className="bg-[var(--color-brand)] px-8 py-6">
-          <p className="text-[9px] uppercase tracking-[0.16em] text-white/70">StudentHub</p>
+          <p className="text-[9px] uppercase tracking-[0.16em] text-white/70">{APP_NAME}</p>
           <h1 className="mt-2 font-heading text-3xl uppercase leading-tight text-white">
             Create your account
           </h1>
@@ -99,7 +100,7 @@ export default function CreateAccountPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
-              placeholder="you@university.edu"
+              placeholder="you@aupp.edu.kh"
             />
           </Field>
 

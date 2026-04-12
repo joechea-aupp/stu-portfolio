@@ -8,6 +8,7 @@ import { DirectoryHero } from "@/components/hero/DirectoryHero";
 import { DirectorySearch } from "@/components/search/DirectorySearch";
 import { StudentGrid } from "@/components/cards/StudentGrid";
 import { StudentCardSkeleton } from "@/components/cards/StudentCardSkeleton";
+import { OnboardModal } from "@/components/onboard/OnboardModal";
 import { MobileFilterDrawer } from "@/components/filters/MobileFilterDrawer";
 import { PageLayout } from "@/components/layout/PageLayout";
 
@@ -67,14 +68,21 @@ function matchesQuery(student: Student, query: string) {
   );
 }
 
-export function DirectoryApp() {
+interface DirectoryAppProps {
+  initialKnownSession?: boolean;
+}
+
+export function DirectoryApp({ initialKnownSession = false }: DirectoryAppProps) {
   const pathname = usePathname();
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(initialKnownSession);
   const [page, setPage] = useState(1);
   const [students, setStudents] = useState<Student[]>([]);
+  const [majorOptions, setMajorOptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [kudoedStudentIds, setKudoedStudentIds] = useState<Set<string>>(new Set());
+  const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
 
   useEffect(() => {
     if (pathname !== "/") {
@@ -129,6 +137,36 @@ export function DirectoryApp() {
   }, [pathname]);
 
   useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/session", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          setIsLoggedIn(false);
+          return;
+        }
+
+        const payload = (await response.json()) as { authenticated?: boolean; user?: { id?: string } };
+        setIsLoggedIn(Boolean(payload.authenticated && payload.user?.id));
+      } catch {
+        if (!controller.signal.aborted) {
+          setIsLoggedIn(false);
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [pathname]);
+
+  useEffect(() => {
     void (async () => {
       try {
         const response = await fetch("/api/student-kudos", { cache: "no-store" });
@@ -145,9 +183,47 @@ export function DirectoryApp() {
     })();
   }, []);
 
-  const majorOptions = useMemo(() => {
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/majors", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as { majors?: unknown };
+        if (!Array.isArray(data.majors)) {
+          return;
+        }
+
+        const nextMajors = data.majors
+          .filter((major): major is string => typeof major === "string")
+          .map((major) => major.trim())
+          .filter((major) => major.length > 0);
+
+        setMajorOptions(Array.from(new Set(nextMajors)).sort());
+      } catch {
+        // Keep fallback options when request fails.
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
+  const fallbackMajorOptions = useMemo(() => {
     return Array.from(new Set(students.map((student) => student.major))).sort();
   }, [students]);
+
+  const resolvedMajorOptions = majorOptions.length > 0 ? majorOptions : fallbackMajorOptions;
 
   const updateFilters = (updater: (current: FilterState) => FilterState) => {
     setFilters(updater);
@@ -245,6 +321,12 @@ export function DirectoryApp() {
           body: JSON.stringify({ action, studentId }),
         });
 
+        if (response.status === 401) {
+          setIsLoggedIn(false);
+          setIsOnboardModalOpen(true);
+          return;
+        }
+
         if (!response.ok) {
           return;
         }
@@ -282,7 +364,8 @@ export function DirectoryApp() {
     >
       <FilterSidebar
         filters={filters}
-        majorOptions={majorOptions}
+        majorOptions={resolvedMajorOptions}
+        isLoggedIn={isLoggedIn}
         onToggleMajor={toggleMajor}
         onAvailabilityChange={(availableOnly) =>
           updateFilters((current) => ({ ...current, availableOnly }))
@@ -377,7 +460,8 @@ export function DirectoryApp() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         filters={filters}
-        majorOptions={majorOptions}
+        majorOptions={resolvedMajorOptions}
+        isLoggedIn={isLoggedIn}
         onToggleMajor={toggleMajor}
         onAvailabilityChange={(availableOnly) =>
           updateFilters((current) => ({ ...current, availableOnly }))
@@ -388,6 +472,8 @@ export function DirectoryApp() {
         }}
         isLoading={isLoading}
       />
+
+      <OnboardModal open={isOnboardModalOpen} onClose={() => setIsOnboardModalOpen(false)} />
     </PageLayout>
   );
 }
