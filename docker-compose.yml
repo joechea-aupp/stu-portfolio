@@ -2,7 +2,6 @@ services:
   app:
     image: node:20-bookworm-slim
     container_name: stu-portfolio-app
-    restart: unless-stopped
     working_dir: /app
     command: >
       sh -c "
@@ -35,7 +34,6 @@ services:
   db:
     image: mysql:8.4
     container_name: stu-portfolio-db
-    restart: unless-stopped
     ports:
       - "3306:3306"
     environment:
