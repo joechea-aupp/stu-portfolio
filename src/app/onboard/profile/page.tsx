@@ -103,6 +103,8 @@ export default function OnboardProfilePage() {
   const [verifierSearchByIndex, setVerifierSearchByIndex] = useState<Record<number, string>>({});
   const [selectedVerifierByIndex, setSelectedVerifierByIndex] = useState<Record<number, string>>({});
   const [requestingAchievementIndex, setRequestingAchievementIndex] = useState<number | null>(null);
+  const [expandedAchievementIndexes, setExpandedAchievementIndexes] = useState<number[]>([]);
+  const [achievementExpansionInitialized, setAchievementExpansionInitialized] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -217,6 +219,21 @@ export default function OnboardProfilePage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!state || achievementExpansionInitialized) {
+      return;
+    }
+
+    const shouldOpenFirstEmptyEntry =
+      state.achievements.length === 1 &&
+      !state.achievements[0].title.trim() &&
+      !state.achievements[0].period.trim() &&
+      !(state.achievements[0].details ?? "").trim();
+
+    setExpandedAchievementIndexes(shouldOpenFirstEmptyEntry ? [0] : []);
+    setAchievementExpansionInitialized(true);
+  }, [achievementExpansionInitialized, state]);
+
   if (loading) {
     return <OnboardProfileSkeleton />;
   }
@@ -276,8 +293,39 @@ export default function OnboardProfilePage() {
   function updateAchievement(i: number, field: keyof TimelineItem, val: string) {
     setState((s) => s && ({ ...s, achievements: s.achievements.map((a, idx) => idx === i ? { ...a, [field]: val } : a) }));
   }
-  function addAchievement() { setState((s) => s && ({ ...s, achievements: [...s.achievements, { ...EMPTY_TIMELINE }] })); }
-  function removeAchievement(i: number) { setState((s) => s && ({ ...s, achievements: s.achievements.filter((_, idx) => idx !== i) })); }
+  function addAchievement() {
+    setState((s) => {
+      if (!s) {
+        return s;
+      }
+
+      const newIndex = s.achievements.length;
+      setExpandedAchievementIndexes([newIndex]);
+
+      return {
+        ...s,
+        achievements: [...s.achievements, { ...EMPTY_TIMELINE }],
+      };
+    });
+  }
+  function removeAchievement(i: number) {
+    setState((s) => s && ({ ...s, achievements: s.achievements.filter((_, idx) => idx !== i) }));
+
+    setExpandedAchievementIndexes((current) => {
+      const next = current
+        .filter((index) => index !== i)
+        .map((index) => (index > i ? index - 1 : index));
+      return next;
+    });
+  }
+
+  function expandAchievement(i: number) {
+    setExpandedAchievementIndexes((current) => (current.includes(i) ? current : [...current, i]));
+  }
+
+  function collapseAchievement(i: number) {
+    setExpandedAchievementIndexes((current) => current.filter((index) => index !== i));
+  }
 
   async function requestAchievementVerification(achievementIndex: number) {
     const selectedVerifier = Number.parseInt(selectedVerifierByIndex[achievementIndex] ?? "", 10);
@@ -685,8 +733,11 @@ export default function OnboardProfilePage() {
                   entry={a}
                   index={i}
                   total={achievements.length}
+                  expanded={expandedAchievementIndexes.includes(i)}
                   onChange={(field, val) => updateAchievement(i, field, val)}
                   onRemove={() => removeAchievement(i)}
+                  onExpand={() => expandAchievement(i)}
+                  onCollapse={() => collapseAchievement(i)}
                   verifierSearch={verifierSearchByIndex[i] ?? ""}
                   onVerifierSearchChange={(value) =>
                     setVerifierSearchByIndex((current) => ({
@@ -811,9 +862,12 @@ function TimelineEntryRow({ entry, index, total, onChange, onRemove }: TimelineE
 
 interface AchievementEntryRowProps extends TimelineEntryRowProps {
   verifiers: VerifierOption[];
+  expanded: boolean;
   verifierSearch: string;
   selectedVerifierId: string;
   requesting: boolean;
+  onExpand: () => void;
+  onCollapse: () => void;
   onVerifierSearchChange: (value: string) => void;
   onSelectedVerifierIdChange: (value: string) => void;
   onRequestVerification: () => void;
@@ -823,8 +877,11 @@ function AchievementEntryRow({
   entry,
   index,
   total,
+  expanded,
   onChange,
   onRemove,
+  onExpand,
+  onCollapse,
   verifiers,
   verifierSearch,
   selectedVerifierId,
@@ -853,6 +910,8 @@ function AchievementEntryRow({
     entry.period.trim().length > 0 &&
     !entry.verifiedBy &&
     !entry.pendingVerification;
+  const displayTitle = entry.title.trim().length > 0 ? entry.title : "Untitled achievement";
+  const displayPeriod = entry.period.trim();
 
   function handleSelectVerifier(verifier: VerifierOption) {
     onSelectedVerifierIdChange(String(verifier.id));
@@ -930,48 +989,87 @@ function AchievementEntryRow({
         <span className="text-[9px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
           Entry {index + 1}
         </span>
-        {total > 1 && (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
-          >
-            Remove
-          </button>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Title</label>
-          <input
-            type="text"
-            placeholder="e.g. Final Year Project"
-            value={entry.title}
-            onChange={(e) => onChange("title", e.target.value)}
-            className={inputCls}
-          />
+        <div className="flex items-center gap-3">
+          {!expanded ? (
+            <>
+              <button
+                type="button"
+                onClick={onExpand}
+                className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+              >
+                Details
+              </button>
+              <button
+                type="button"
+                onClick={onExpand}
+                className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+              >
+                Edit
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={onCollapse}
+              className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+            >
+              Minimize
+            </button>
+          )}
+          {total > 1 && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+            >
+              Remove
+            </button>
+          )}
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Period</label>
-          <input
-            type="text"
-            placeholder="e.g. Jan 2025 - Apr 2025"
-            value={entry.period}
-            onChange={(e) => onChange("period", e.target.value)}
-            className={inputCls}
-          />
+      </div>
+      {!expanded ? (
+        <div className="flex flex-col gap-2 border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
+          <p className="text-sm text-[var(--color-text)]">{displayTitle}</p>
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+            {displayPeriod || "No period added"}
+          </p>
         </div>
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Details</label>
-        <textarea
-          rows={2}
-          placeholder="Brief description..."
-          value={entry.details ?? ""}
-          onChange={(e) => onChange("details", e.target.value)}
-          className={`${inputCls} resize-y`}
-        />
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Title</label>
+              <input
+                type="text"
+                placeholder="e.g. Final Year Project"
+                value={entry.title}
+                onChange={(e) => onChange("title", e.target.value)}
+                className={inputCls}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Period</label>
+              <input
+                type="text"
+                placeholder="e.g. Jan 2025 - Apr 2025"
+                value={entry.period}
+                onChange={(e) => onChange("period", e.target.value)}
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Details</label>
+            <textarea
+              rows={2}
+              placeholder="Brief description..."
+              value={entry.details ?? ""}
+              onChange={(e) => onChange("details", e.target.value)}
+              className={`${inputCls} resize-y`}
+            />
+          </div>
+        </>
+      )}
 
       {entry.verifiedBy ? (
         <p className="text-[10px] uppercase tracking-[0.12em] text-emerald-700">
@@ -981,7 +1079,7 @@ function AchievementEntryRow({
         <p className="text-[10px] uppercase tracking-[0.12em] text-amber-700">
           Pending verification by {entry.pendingVerification.verifierName}
         </p>
-      ) : (
+      ) : expanded ? (
         <div className="grid gap-2 border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
             Request verification
@@ -1087,7 +1185,7 @@ function AchievementEntryRow({
             {requesting ? "Sending request..." : "Request verification"}
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
