@@ -201,8 +201,13 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
         return;
       }
 
-      const payload = (await response.json()) as { pendingCount?: number };
-      setPendingCount(typeof payload.pendingCount === "number" ? payload.pendingCount : 0);
+      const payload = (await response.json()) as { pendingCount?: number | string };
+      const parsedCount =
+        typeof payload.pendingCount === "number"
+          ? payload.pendingCount
+          : Number.parseInt(String(payload.pendingCount ?? "0"), 10);
+
+      setPendingCount(Number.isFinite(parsedCount) && parsedCount > 0 ? parsedCount : 0);
     } catch {
       setPendingCount(0);
     }
@@ -284,6 +289,20 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
 
     void loadPendingCount();
   }, [canVerifyAchievements, loadPendingCount, pathname]);
+
+  useEffect(() => {
+    if (!canVerifyAchievements) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void loadPendingCount();
+    }, 30000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [canVerifyAchievements, loadPendingCount]);
 
   useEffect(() => {
     if (!notificationOpen || !canVerifyAchievements) {

@@ -72,5 +72,11 @@ export async function GET() {
       AND status = 'PENDING'
   `;
 
-  return Response.json({ pendingCount: rows[0]?.total ?? 0 });
+  const rawTotal = rows[0]?.total;
+  const pendingCount =
+    typeof rawTotal === "number"
+      ? rawTotal
+      : Number.parseInt(String(rawTotal ?? "0"), 10);
+
+  return Response.json({ pendingCount: Number.isFinite(pendingCount) && pendingCount > 0 ? pendingCount : 0 });
 }
