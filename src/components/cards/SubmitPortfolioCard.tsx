@@ -14,7 +14,6 @@ export function SubmitPortfolioCard({ isLoggedIn = false }: SubmitPortfolioCardP
   const description = isLoggedIn
     ? "Show your progress, motivate peers, and attract real opportunities."
     : "Join the showcase and get spotted by recruiters.";
-  const cta = isLoggedIn ? "Inspire others" : "Get featured";
 
   return (
     <>
@@ -28,13 +27,15 @@ export function SubmitPortfolioCard({ isLoggedIn = false }: SubmitPortfolioCardP
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="border-[2px] border-white bg-[var(--color-accent)] px-3 py-1.5 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-white hover:text-[var(--color-brand)]"
-        >
-          {cta}
-        </button>
+        {!isLoggedIn && (
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="border-[2px] border-white bg-[var(--color-accent)] px-3 py-1.5 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-white hover:text-[var(--color-brand)]"
+          >
+            Get featured
+          </button>
+        )}
       </article>
 
       <OnboardModal open={modalOpen} onClose={() => setModalOpen(false)} />
