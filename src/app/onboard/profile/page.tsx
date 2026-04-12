@@ -103,6 +103,7 @@ export default function OnboardProfilePage() {
   const [verifierSearchByIndex, setVerifierSearchByIndex] = useState<Record<number, string>>({});
   const [selectedVerifierByIndex, setSelectedVerifierByIndex] = useState<Record<number, string>>({});
   const [requestingAchievementIndex, setRequestingAchievementIndex] = useState<number | null>(null);
+  const [expandedProjectIndexes, setExpandedProjectIndexes] = useState<number[]>([]);
   const [expandedAchievementIndexes, setExpandedAchievementIndexes] = useState<number[]>([]);
   const [achievementExpansionInitialized, setAchievementExpansionInitialized] = useState(false);
 
@@ -293,7 +294,20 @@ export default function OnboardProfilePage() {
     setState((s) => s && ({ ...s, projects: s.projects.map((p, idx) => idx === i ? { ...p, [field]: val } : p) }));
   }
   function addProject() { setState((s) => s && ({ ...s, projects: [...s.projects, { ...EMPTY_TIMELINE }] })); }
-  function removeProject(i: number) { setState((s) => s && ({ ...s, projects: s.projects.filter((_, idx) => idx !== i) })); }
+  function removeProject(i: number) {
+    setState((s) => s && ({ ...s, projects: s.projects.filter((_, idx) => idx !== i) }));
+    setExpandedProjectIndexes((current) =>
+      current
+        .filter((index) => index !== i)
+        .map((index) => (index > i ? index - 1 : index)),
+    );
+  }
+  function expandProject(i: number) {
+    setExpandedProjectIndexes((current) => (current.includes(i) ? current : [...current, i]));
+  }
+  function collapseProject(i: number) {
+    setExpandedProjectIndexes((current) => current.filter((index) => index !== i));
+  }
 
   // ── achievements ─────────────────────────────────────────
   function updateAchievement(i: number, field: keyof TimelineItem, val: string) {
@@ -769,8 +783,11 @@ export default function OnboardProfilePage() {
                   entry={p}
                   index={i}
                   total={projects.length}
+                  expanded={expandedProjectIndexes.includes(i)}
                   onChange={(field, val) => updateProject(i, field, val)}
                   onRemove={() => removeProject(i)}
+                  onExpand={() => expandProject(i)}
+                  onCollapse={() => collapseProject(i)}
                 />
               ))}
             </div>
@@ -894,59 +911,106 @@ interface TimelineEntryRowProps {
   entry: TimelineItem;
   index: number;
   total: number;
+  expanded: boolean;
   onChange: (field: keyof TimelineItem, val: string) => void;
   onRemove: () => void;
+  onExpand: () => void;
+  onCollapse: () => void;
 }
 
-function TimelineEntryRow({ entry, index, total, onChange, onRemove }: TimelineEntryRowProps) {
+function TimelineEntryRow({
+  entry,
+  index,
+  total,
+  expanded,
+  onChange,
+  onRemove,
+  onExpand,
+  onCollapse,
+}: TimelineEntryRowProps) {
+  const displayTitle = entry.title.trim().length > 0 ? entry.title : "Untitled project";
+  const displayPeriod = entry.period.trim();
+
   return (
     <div className="border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-[9px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
           Entry {index + 1}
         </span>
-        {total > 1 && (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
-          >
-            Remove
-          </button>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Title</label>
-          <input
-            type="text"
-            placeholder="e.g. Final Year Project"
-            value={entry.title}
-            onChange={(e) => onChange("title", e.target.value)}
-            className={inputCls}
-          />
+        <div className="flex items-center gap-3">
+          {!expanded ? (
+            <button
+              type="button"
+              onClick={onExpand}
+              aria-expanded={false}
+              className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+            >
+              Edit
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onCollapse}
+              aria-expanded={true}
+              className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+            >
+              Minimize
+            </button>
+          )}
+          {total > 1 && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+            >
+              Remove
+            </button>
+          )}
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Period</label>
-          <input
-            type="text"
-            placeholder="e.g. Jan 2025 – Apr 2025"
-            value={entry.period}
-            onChange={(e) => onChange("period", e.target.value)}
-            className={inputCls}
-          />
+      </div>
+      {!expanded ? (
+        <div className="flex flex-col gap-2 border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
+          <p className="text-sm text-[var(--color-text)]">{displayTitle}</p>
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+            {displayPeriod || "No period added"}
+          </p>
         </div>
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Details</label>
-        <textarea
-          rows={2}
-          placeholder="Brief description…"
-          value={entry.details ?? ""}
-          onChange={(e) => onChange("details", e.target.value)}
-          className={`${inputCls} resize-y`}
-        />
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Title</label>
+              <input
+                type="text"
+                placeholder="e.g. Final Year Project"
+                value={entry.title}
+                onChange={(e) => onChange("title", e.target.value)}
+                className={inputCls}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Period</label>
+              <input
+                type="text"
+                placeholder="e.g. Jan 2025 - Apr 2025"
+                value={entry.period}
+                onChange={(e) => onChange("period", e.target.value)}
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Details</label>
+            <textarea
+              rows={2}
+              placeholder="Brief description..."
+              value={entry.details ?? ""}
+              onChange={(e) => onChange("details", e.target.value)}
+              className={`${inputCls} resize-y`}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -968,7 +1032,6 @@ interface AchievementEntryRowProps extends TimelineEntryRowProps {
 function AchievementEntryRow({
   entry,
   index,
-  total,
   expanded,
   onChange,
   onRemove,
