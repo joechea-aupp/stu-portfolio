@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Oswald, Source_Sans_3 } from "next/font/google";
 import { AppShell } from "@/components/layout/AppShell";
 import { SESSION_COOKIE_NAME } from "@/lib/auth-session";
+import { APP_NAME } from "@/lib/app-config";
 import "./globals.css";
 
 const headingFont = Oswald({
@@ -16,7 +17,7 @@ const bodyFont = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Student Portfolio Directory",
+  title: APP_NAME,
   description: "A bold portfolio directory interface for discovering student talent.",
 };
 

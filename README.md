@@ -77,6 +77,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `MYSQL_USER` | App database user |
 | `MYSQL_PASSWORD` | App database user password |
 | `DATABASE_URL` | Prisma/MySQL connection string used by local Node.js runtime (for local host access on MySQL 8, include `?allowPublicKeyRetrieval=true`) |
+| `NEXT_PUBLIC_APP_NAME` | Application brand name shown in the UI (defaults to `EagleHUB` when not set) |
 
 Inside Docker, `DATABASE_URL` is assembled automatically in `docker-compose.yml`.
 For local development outside Docker, set `DATABASE_URL` in `.env` (see `.env.example`).
