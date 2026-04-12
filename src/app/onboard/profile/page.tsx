@@ -399,6 +399,17 @@ export default function OnboardProfilePage() {
     setSaveFeedback(null);
 
     try {
+      const saved = await persistProfile(
+        achievements,
+        "Profile updated successfully.",
+        false,
+        false,
+      );
+
+      if (!saved) {
+        return;
+      }
+
       const response = await fetch("/api/onboard/achievement-verifications", {
         method: "POST",
         headers: {
@@ -497,7 +508,12 @@ export default function OnboardProfilePage() {
     });
   }
 
-  async function persistProfile(nextAchievements: TimelineItem[], successMessage: string, refreshAfterSave = false) {
+  async function persistProfile(
+    nextAchievements: TimelineItem[],
+    successMessage: string,
+    refreshAfterSave = false,
+    showSuccessFeedback = true,
+  ): Promise<boolean> {
     setSaving(true);
     setSaveFeedback(null);
 
@@ -532,16 +548,21 @@ export default function OnboardProfilePage() {
 
       if (!response.ok) {
         setSaveFeedback(payload.error ?? "Failed to save profile.");
-        return;
+        return false;
       }
 
-      setSaveFeedback(successMessage);
+      if (showSuccessFeedback) {
+        setSaveFeedback(successMessage);
+      }
 
       if (refreshAfterSave) {
         router.refresh();
       }
+
+      return true;
     } catch {
       setSaveFeedback("Failed to save profile.");
+      return false;
     } finally {
       setSaving(false);
     }

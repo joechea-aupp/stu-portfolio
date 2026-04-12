@@ -50,6 +50,7 @@ interface EditDraft {
   name: string;
   email: string;
   userType: ManagedUserType;
+  roleId: number | null;
 }
 
 interface PasswordResetDraft {
@@ -103,6 +104,15 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
   const canAssignRoles = currentUserPermissions.includes("roles.assign");
   const canAccessRbac = canCreateRoles || canUpdateRoles || canAssignRoles;
   const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const defaultAdministrationRoleId = useMemo(() => {
+    const adminStaffRole = roles.find((role) => role.name === "ADMIN_STAFF");
+    if (adminStaffRole) {
+      return adminStaffRole.id;
+    }
+
+    return roles[0]?.id ?? null;
+  }, [roles]);
 
   const sortedUsers = useMemo(
     () => users.slice().sort((a, b) => Number(new Date(b.createdAt)) - Number(new Date(a.createdAt))),
@@ -379,6 +389,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
       name: user.name,
       email: user.email,
       userType: user.userType,
+      roleId: user.userType === "ADMINISTRATION" ? (user.roles[0]?.id ?? defaultAdministrationRoleId) : null,
     });
   }
 
@@ -409,6 +420,11 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
       return;
     }
 
+    if (editDraft.userType === "ADMINISTRATION" && canAssignRoles && editDraft.roleId === null) {
+      setFeedback("Select a role for administration users.");
+      return;
+    }
+
     const updated = await runUserAction({
       userId,
       action: "edit",
@@ -419,6 +435,22 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
 
     if (!updated) {
       return;
+    }
+
+    if (editDraft.userType === "ADMINISTRATION" && canAssignRoles) {
+      const currentRoleId = updated.roles[0]?.id ?? null;
+
+      if (currentRoleId !== editDraft.roleId) {
+        const roleAssigned = await runUserAction({
+          userId,
+          action: "assignRole",
+          roleId: editDraft.roleId,
+        });
+
+        if (!roleAssigned) {
+          return;
+        }
+      }
     }
 
     cancelEdit();
@@ -785,7 +817,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
               <div>
                 <h3 className="font-heading text-base uppercase tracking-[0.08em] text-[var(--color-text)]">Edit user</h3>
                 <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Update name, email, and type.
+                  Update name, email, type, and role.
                 </p>
               </div>
               <button
@@ -847,6 +879,10 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                         ? {
                             ...current,
                             userType: e.target.value as ManagedUserType,
+                            roleId:
+                              e.target.value === "ADMINISTRATION"
+                                ? (current.roleId ?? defaultAdministrationRoleId)
+                                : null,
                           }
                         : current,
                     )
@@ -857,6 +893,40 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                   <option value="ADMINISTRATION">ADMINISTRATION</option>
                 </select>
               </label>
+
+              {editDraft.userType === "ADMINISTRATION" ? (
+                <label className="grid gap-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</span>
+                  <select
+                    value={editDraft.roleId ?? ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setEditDraft((current) =>
+                        current
+                          ? {
+                              ...current,
+                              roleId: value ? Number(value) : null,
+                            }
+                          : current,
+                      );
+                    }}
+                    disabled={!canAssignRoles}
+                    className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] disabled:opacity-50"
+                  >
+                    <option value="">Select role</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                  {!canAssignRoles ? (
+                    <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                      You do not have permission to change role assignments.
+                    </span>
+                  ) : null}
+                </label>
+              ) : null}
             </div>
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">
