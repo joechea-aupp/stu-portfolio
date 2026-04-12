@@ -70,15 +70,11 @@ async function runBootstrap() {
       'achievements.verify'
     )
     WHERE r.name = 'ADMIN_SUPER'
-  `;
-
-  await prisma.$executeRaw`
-    DELETE rp
-    FROM role_permissions rp
-    JOIN roles r ON r.id = rp.role_id
-    JOIN permissions p ON p.id = rp.permission_id
-    WHERE r.name = 'ADMIN_MANAGER'
-      AND p.\`key\` NOT IN ('users.access', 'roles.assign', 'achievements.verify')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM role_permissions rp_existing
+        WHERE rp_existing.role_id = r.id
+      )
   `;
 
   await prisma.$executeRaw`
@@ -87,15 +83,11 @@ async function runBootstrap() {
     FROM roles r
     JOIN permissions p ON p.\`key\` IN ('users.access', 'roles.assign', 'achievements.verify')
     WHERE r.name = 'ADMIN_MANAGER'
-  `;
-
-  await prisma.$executeRaw`
-    DELETE rp
-    FROM role_permissions rp
-    JOIN roles r ON r.id = rp.role_id
-    JOIN permissions p ON p.id = rp.permission_id
-    WHERE r.name = 'ADMIN_STAFF'
-      AND p.\`key\` <> 'users.access'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM role_permissions rp_existing
+        WHERE rp_existing.role_id = r.id
+      )
   `;
 
   await prisma.$executeRaw`
@@ -104,6 +96,11 @@ async function runBootstrap() {
     FROM roles r
     JOIN permissions p ON p.\`key\` IN ('users.access')
     WHERE r.name = 'ADMIN_STAFF'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM role_permissions rp_existing
+        WHERE rp_existing.role_id = r.id
+      )
   `;
 
   await prisma.$executeRaw`
@@ -112,6 +109,11 @@ async function runBootstrap() {
     FROM roles r
     JOIN permissions p ON p.\`key\` IN ('roles.assign')
     WHERE r.name = 'ROLE_ASSIGNER'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM role_permissions rp_existing
+        WHERE rp_existing.role_id = r.id
+      )
   `;
 
   const hasLegacyColumnsRows = await prisma.$queryRaw<Array<{ total: number }>>`
