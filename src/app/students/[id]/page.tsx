@@ -112,6 +112,13 @@ function getShareDescription(student: Student): string {
   return summary.length > 180 ? `${summary.slice(0, 177)}...` : summary;
 }
 
+function getOgDescription(student: Student): string {
+  const base = getShareDescription(student);
+  const verifiedCount = student.achievements.filter((a) => a.verifiedBy).length;
+  const stats = `Kudos: ${student.kudoCount} · Views: ${student.viewCount} · Verified Achievements: ${verifiedCount}`;
+  return `${base} | ${stats}`;
+}
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
@@ -318,6 +325,7 @@ export async function generateMetadata({
 
   const title = `${student.name} | ${APP_NAME}`;
   const description = getShareDescription(student);
+  const ogDescription = getOgDescription(student);
   const profileUrl = `/students/${student.id}`;
 
   return {
@@ -328,7 +336,7 @@ export async function generateMetadata({
     },
     openGraph: {
       title,
-      description,
+      description: ogDescription,
       url: profileUrl,
       type: "profile",
       images: [
@@ -341,7 +349,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title,
-      description,
+      description: ogDescription,
       images: [buildAbsoluteUrl(student.imageUrl)],
     },
   };
