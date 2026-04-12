@@ -5,6 +5,7 @@ import { PortfolioStats } from "@/components/cards/PortfolioStats";
 import { PortfolioViewTracker } from "@/components/cards/PortfolioViewTracker";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { getPrismaClient } from "@/lib/prisma";
+import { resolveStudentImageUrl } from "@/lib/profile-images";
 import type { AcademicYear, SocialLinks, Student, TimelineItem } from "@/types/student";
 
 function formatAdministrationTitle(value: string | null | undefined): string | undefined {
@@ -275,10 +276,7 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
       projects: asTimelineItems(dbStudent.projects),
       achievements: enrichedAchievements,
       summary: dbStudent.summary ?? "",
-      imageUrl:
-        dbStudent.image_url && dbStudent.image_url.trim().length > 0
-          ? dbStudent.image_url
-          : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=640&q=80",
+      imageUrl: resolveStudentImageUrl(dbStudent.image_url),
       socialLinks: asSocialLinks(dbStudent.social_links),
     };
   } catch {

@@ -1,6 +1,7 @@
 import { Classification } from "@prisma/client";
 import type { AcademicYear, SocialLinks, Student, TimelineItem } from "@/types/student";
 import { getPrismaClient } from "@/lib/prisma";
+import { resolveStudentImageUrl } from "@/lib/profile-images";
 
 function parseVerifiedBy(value: unknown): TimelineItem["verifiedBy"] {
   if (!value || typeof value !== "object") {
@@ -142,10 +143,7 @@ export async function GET() {
       projects: asTimelineItems(student.projects),
       achievements: asTimelineItems(student.achievements),
       summary: student.summary ?? "",
-      imageUrl:
-        student.image_url && student.image_url.trim().length > 0
-          ? student.image_url
-          : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=640&q=80",
+      imageUrl: resolveStudentImageUrl(student.image_url),
       socialLinks: asSocialLinks(student.social_links),
     }));
 

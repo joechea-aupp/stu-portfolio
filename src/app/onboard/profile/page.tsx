@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { AcademicYear, SocialLinks, TimelineItem } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { OnboardProfileSkeleton } from "@/components/onboard/OnboardProfileSkeleton";
+import { DEFAULT_STUDENT_IMAGE_URL, resolveStudentImageUrl } from "@/lib/profile-images";
 
 interface DraftProfile {
   name: string;
@@ -145,7 +146,7 @@ export default function OnboardProfilePage() {
           graduationYear: "",
           year: "freshman",
           availableForProject: false,
-          imageUrl: "",
+          imageUrl: DEFAULT_STUDENT_IMAGE_URL,
           projects: [],
           achievements: [],
           summary: "",
@@ -618,18 +619,16 @@ export default function OnboardProfilePage() {
         {/* Identity summary */}
         <div className="mb-8 mt-6 flex items-center gap-4">
           <div className="relative h-16 w-16 flex-shrink-0 border-[2px] border-[var(--color-brand)] overflow-hidden bg-[var(--color-bg)]">
-            {draft.imageUrl && (
-              <Image
-                src={draft.imageUrl}
-                alt={
-                  typeof draft.name === "string" && draft.name.trim().length > 0
-                    ? `${draft.name} profile photo`
-                    : "Student profile photo"
-                }
-                fill
-                className="object-cover"
-              />
-            )}
+            <Image
+              src={resolveStudentImageUrl(draft.imageUrl)}
+              alt={
+                typeof draft.name === "string" && draft.name.trim().length > 0
+                  ? `${draft.name} profile photo`
+                  : "Student profile photo"
+              }
+              fill
+              className="object-cover"
+            />
           </div>
           <div>
             <p className="font-heading text-xl uppercase text-[var(--color-text)] leading-tight">{draft.name}</p>

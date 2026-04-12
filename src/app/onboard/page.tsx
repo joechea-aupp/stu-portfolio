@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { AcademicYear } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { PREDEFINED_MAJORS } from "@/lib/majors";
+import { DEFAULT_STUDENT_IMAGE_URL } from "@/lib/profile-images";
 
 const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
   { value: "freshman", label: "Freshman" },
@@ -16,8 +17,8 @@ const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
 
 export default function OnboardPage() {
   const router = useRouter();
-  const [preview, setPreview] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string>("");
+  const [preview, setPreview] = useState<string | null>(DEFAULT_STUDENT_IMAGE_URL);
+  const [imageUrl, setImageUrl] = useState<string>(DEFAULT_STUDENT_IMAGE_URL);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [major, setMajor] = useState("");
@@ -95,7 +96,7 @@ export default function OnboardPage() {
       setImageUrl(payload.url ?? "");
     } catch (error) {
       alert(error instanceof Error ? error.message : "Upload failed.");
-      setPreview(null);
+      setPreview(DEFAULT_STUDENT_IMAGE_URL);
     } finally {
       setUploading(false);
     }

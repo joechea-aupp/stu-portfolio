@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { AdministrationTitle } from "@prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
+import { resolveAdministrationImageUrl } from "@/lib/profile-images";
 
 function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
@@ -100,7 +101,7 @@ export async function GET() {
           phoneNumber: user.administration.phone_number,
           gender: user.administration.gender,
           summary: user.administration.summary,
-          profilePicUrl: user.administration.profile_pic_url,
+          profilePicUrl: resolveAdministrationImageUrl(user.administration.profile_pic_url),
           title: user.administration.title,
         }
       : null,

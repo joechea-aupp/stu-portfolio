@@ -10,6 +10,10 @@ import { AdministrationUserManager } from "@/components/onboard/AdministrationUs
 import { AchievementVerificationManager } from "@/components/onboard/AchievementVerificationManager";
 import { StudentMajorsManager } from "@/components/onboard/StudentMajorsManager";
 import { OnboardProfileSkeleton } from "@/components/onboard/OnboardProfileSkeleton";
+import {
+  DEFAULT_ADMINISTRATION_IMAGE_URL,
+  resolveAdministrationImageUrl,
+} from "@/lib/profile-images";
 
 interface DraftResponse {
   draft?: AdministrationProfile | null;
@@ -110,7 +114,7 @@ export default function AdministrationOnboardPage() {
           phoneNumber: "",
           gender: "",
           summary: "",
-          profilePicUrl: "",
+          profilePicUrl: DEFAULT_ADMINISTRATION_IMAGE_URL,
         };
 
         const draft = payload.draft ?? fallbackDraft;
@@ -123,10 +127,10 @@ export default function AdministrationOnboardPage() {
           phoneNumber: draft.phoneNumber,
           gender: normalizeGender(draft.gender),
           summary: draft.summary,
-          profilePicUrl: draft.profilePicUrl,
+          profilePicUrl: resolveAdministrationImageUrl(draft.profilePicUrl),
         });
         setLoadError(null);
-        setPreview(draft.profilePicUrl || null);
+        setPreview(resolveAdministrationImageUrl(draft.profilePicUrl));
       } catch {
         if (active) {
           setLoadError("Unable to load administration profile.");
@@ -252,7 +256,7 @@ export default function AdministrationOnboardPage() {
       );
     } catch (uploadError) {
       setSaveFeedback(uploadError instanceof Error ? uploadError.message : "Upload failed.");
-      setPreview(null);
+      setPreview(resolveAdministrationImageUrl(state?.profilePicUrl));
     } finally {
       setUploading(false);
     }

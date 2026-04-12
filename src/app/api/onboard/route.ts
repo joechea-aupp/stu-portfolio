@@ -4,6 +4,7 @@ import { Classification, Prisma } from "@prisma/client";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import type { SocialLinks } from "@/types/student";
 import { normalizeMajorName } from "@/lib/majors";
+import { resolveStudentImageUrl } from "@/lib/profile-images";
 
 function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
@@ -165,7 +166,7 @@ export async function GET() {
         year: user.student.classification.toLowerCase(),
         availableForProject: user.student.available_for_project,
         summary: user.student.summary ?? "",
-        imageUrl: user.student.image_url ?? "",
+        imageUrl: resolveStudentImageUrl(user.student.image_url),
         skills: Array.isArray(user.student.skills) ? user.student.skills : [],
         projects: Array.isArray(user.student.projects) ? user.student.projects : [],
         achievements: Array.isArray(user.student.achievements) ? user.student.achievements : [],
@@ -221,7 +222,7 @@ export async function GET() {
             year: fallbackUser.student.classification.toLowerCase(),
             availableForProject: fallbackUser.student.available_for_project,
             summary: fallbackUser.student.summary ?? "",
-            imageUrl: fallbackUser.student.image_url ?? "",
+            imageUrl: resolveStudentImageUrl(fallbackUser.student.image_url),
             skills: Array.isArray(fallbackUser.student.skills) ? fallbackUser.student.skills : [],
             projects: Array.isArray(fallbackUser.student.projects)
               ? fallbackUser.student.projects
