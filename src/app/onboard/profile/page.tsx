@@ -71,7 +71,12 @@ interface EditState {
 interface VerifierOption {
   id: number;
   name: string;
-  role: string;
+  title: string;
+  occupation: string;
+}
+
+function formatVerifierDisplayName(verifier: VerifierOption): string {
+  return verifier.title ? `${verifier.title} ${verifier.name}` : verifier.name;
 }
 
 function getAvailableSocialLinkOptions(socialLinks: SocialLinks) {
@@ -846,7 +851,7 @@ function AchievementEntryRow({
 
   function handleSelectVerifier(verifier: VerifierOption) {
     onSelectedVerifierIdChange(String(verifier.id));
-    onVerifierSearchChange(verifier.name);
+    onVerifierSearchChange(formatVerifierDisplayName(verifier));
     setDropdownOpen(false);
     setHighlightedIndex(-1);
   }
@@ -1047,7 +1052,7 @@ function AchievementEntryRow({
                           event.preventDefault();
                           handleSelectVerifier(verifier);
                         }}
-                        className={`flex w-full items-center justify-between px-2.5 py-2 text-left text-xs transition ${
+                        className={`flex w-full items-start justify-between gap-2 px-2.5 py-2 text-left text-xs transition ${
                           isHighlighted
                             ? "bg-[var(--color-bg)] text-[var(--color-text)]"
                             : isSelected
@@ -1055,9 +1060,9 @@ function AchievementEntryRow({
                             : "text-[var(--color-text)] hover:bg-[var(--color-bg)]"
                         }`}
                       >
-                        <span>{verifier.name}</span>
-                        <span className={`ml-2 ${isSelected ? "text-white/85" : "text-[var(--color-text-muted)]"}`}>
-                          {verifier.role}
+                        <span className="font-semibold">{formatVerifierDisplayName(verifier)}</span>
+                        <span className={`shrink-0 text-right ${isSelected ? "text-white/85" : "text-[var(--color-text-muted)]"}`}>
+                          <span className="block">{verifier.occupation}</span>
                         </span>
                       </button>
                     );

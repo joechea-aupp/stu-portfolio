@@ -51,27 +51,50 @@ export async function GET(request: Request) {
 
   const prisma = getPrismaClient();
   const verifiers = await prisma.$queryRaw<
-    Array<{ id: number; name: string; role_name: string | null }>
+    Array<{ id: number; name: string; title: string | null; occupation: string | null }>
   >`
-    SELECT DISTINCT u.id, u.name, r.name AS role_name
+    SELECT
+      u.id,
+      u.name,
+      a.title,
+      a.occupation
     FROM users u
-    JOIN user_roles ur ON ur.user_id = u.id
-    JOIN roles r ON r.id = ur.role_id
-    JOIN role_permissions rp ON rp.role_id = r.id
-    JOIN permissions p ON p.id = rp.permission_id
+    JOIN administrations a ON a.user_id = u.id
+    LEFT JOIN user_roles ur ON ur.user_id = u.id
+    LEFT JOIN roles r ON r.id = ur.role_id
+    LEFT JOIN role_permissions rp ON rp.role_id = r.id
+    LEFT JOIN permissions p ON p.id = rp.permission_id
     WHERE u.user_type = 'ADMINISTRATION'
       AND u.is_active = true
       AND p.key = 'achievements.verify'
       AND (${query} = '' OR LOWER(u.name) LIKE LOWER(CONCAT('%', ${query}, '%')))
+    GROUP BY u.id, u.name, a.title, a.occupation
     ORDER BY u.name ASC
     LIMIT 50
   `;
+
+  function formatTitle(value: string | null): string {
+    if (value === "MR") {
+      return "Mr.";
+    }
+
+    if (value === "MS") {
+      return "Ms.";
+    }
+
+    if (value === "DR") {
+      return "Dr.";
+    }
+
+    return "";
+  }
 
   return Response.json({
     verifiers: verifiers.map((entry) => ({
       id: entry.id,
       name: entry.name,
-      role: entry.role_name ?? "Administration",
+      title: formatTitle(entry.title),
+      occupation: entry.occupation ?? "Administration",
     })),
   });
 }
