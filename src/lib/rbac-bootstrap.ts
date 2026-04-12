@@ -129,16 +129,13 @@ async function runBootstrap() {
       INSERT IGNORE INTO user_roles (user_id, role_id)
       SELECT u.id, r.id
       FROM users u
-      JOIN roles r ON r.name = COALESCE(u.administration_role, 'ADMIN_STAFF')
+      JOIN roles r ON r.name = CASE
+        WHEN u.can_assign_roles = true THEN 'ADMIN_MANAGER'
+        ELSE COALESCE(u.administration_role, 'ADMIN_STAFF')
+      END
+      LEFT JOIN user_roles ur ON ur.user_id = u.id
       WHERE u.user_type = 'ADMINISTRATION'
-    `;
-
-    await prisma.$executeRaw`
-      INSERT IGNORE INTO user_roles (user_id, role_id)
-      SELECT u.id, r.id
-      FROM users u
-      JOIN roles r ON r.name = 'ROLE_ASSIGNER'
-      WHERE u.user_type = 'ADMINISTRATION' AND u.can_assign_roles = true
+        AND ur.user_id IS NULL
     `;
   } else {
     await prisma.$executeRaw`
@@ -146,7 +143,9 @@ async function runBootstrap() {
       SELECT u.id, r.id
       FROM users u
       JOIN roles r ON r.name = 'ADMIN_STAFF'
+      LEFT JOIN user_roles ur ON ur.user_id = u.id
       WHERE u.user_type = 'ADMINISTRATION'
+        AND ur.user_id IS NULL
     `;
   }
 
