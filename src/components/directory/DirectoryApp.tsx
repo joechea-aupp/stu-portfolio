@@ -67,10 +67,15 @@ function matchesQuery(student: Student, query: string) {
   );
 }
 
-export function DirectoryApp() {
+interface DirectoryAppProps {
+  initialKnownSession?: boolean;
+}
+
+export function DirectoryApp({ initialKnownSession = false }: DirectoryAppProps) {
   const pathname = usePathname();
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(initialKnownSession);
   const [page, setPage] = useState(1);
   const [students, setStudents] = useState<Student[]>([]);
   const [majorOptions, setMajorOptions] = useState<string[]>([]);
@@ -120,6 +125,36 @@ export function DirectoryApp() {
 
         if (!controller.signal.aborted) {
           setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/session", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          setIsLoggedIn(false);
+          return;
+        }
+
+        const payload = (await response.json()) as { authenticated?: boolean; user?: { id?: string } };
+        setIsLoggedIn(Boolean(payload.authenticated && payload.user?.id));
+      } catch {
+        if (!controller.signal.aborted) {
+          setIsLoggedIn(false);
         }
       }
     })();
@@ -322,6 +357,7 @@ export function DirectoryApp() {
       <FilterSidebar
         filters={filters}
         majorOptions={resolvedMajorOptions}
+        isLoggedIn={isLoggedIn}
         onToggleMajor={toggleMajor}
         onAvailabilityChange={(availableOnly) =>
           updateFilters((current) => ({ ...current, availableOnly }))
@@ -417,6 +453,7 @@ export function DirectoryApp() {
         onClose={() => setIsDrawerOpen(false)}
         filters={filters}
         majorOptions={resolvedMajorOptions}
+        isLoggedIn={isLoggedIn}
         onToggleMajor={toggleMajor}
         onAvailabilityChange={(availableOnly) =>
           updateFilters((current) => ({ ...current, availableOnly }))
