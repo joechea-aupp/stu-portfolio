@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { APP_NAME } from "@/lib/app-config";
 
@@ -14,6 +15,8 @@ export default function CreateAccountPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,6 +34,7 @@ export default function CreateAccountPage() {
           email,
           password,
           userType,
+          cfTurnstileToken: turnstileToken,
         }),
       });
 
@@ -41,6 +45,8 @@ export default function CreateAccountPage() {
 
       if (!response.ok) {
         setError(payload.error ?? "Unable to create account.");
+        turnstileRef.current?.reset();
+        setTurnstileToken(null);
         return;
       }
 
@@ -48,6 +54,8 @@ export default function CreateAccountPage() {
       router.push(targetUserType === "ADMINISTRATION" ? "/onboard/administration" : "/onboard");
     } catch {
       setError("Something went wrong. Please try again.");
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     } finally {
       setSubmitting(false);
     }
@@ -122,9 +130,18 @@ export default function CreateAccountPage() {
             <p className="border border-red-400 bg-red-100 px-3 py-2 text-sm text-red-700">{error}</p>
           ) : null}
 
+          <Turnstile
+            ref={turnstileRef}
+            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+            onSuccess={setTurnstileToken}
+            onExpire={() => setTurnstileToken(null)}
+            onError={() => setTurnstileToken(null)}
+            options={{ theme: "auto" }}
+          />
+
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !turnstileToken}
             className="mt-2 border-[2px] border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-3 font-heading text-sm uppercase tracking-[0.08em] text-white transition hover:bg-[var(--color-brand)] hover:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? "Creating..." : "Create account"}
