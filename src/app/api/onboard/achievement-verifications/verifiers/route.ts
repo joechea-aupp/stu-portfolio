@@ -51,11 +51,12 @@ export async function GET(request: Request) {
 
   const prisma = getPrismaClient();
   const verifiers = await prisma.$queryRaw<
-    Array<{ id: number; name: string; title: string | null; occupation: string | null }>
+    Array<{ id: number; name: string; email: string; title: string | null; occupation: string | null }>
   >`
     SELECT
       u.id,
       u.name,
+      u.email,
       a.title,
       a.occupation
     FROM users u
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
       AND u.is_active = true
       AND p.key = 'achievements.verify'
       AND (${query} = '' OR LOWER(u.name) LIKE LOWER(CONCAT('%', ${query}, '%')))
-    GROUP BY u.id, u.name, a.title, a.occupation
+    GROUP BY u.id, u.name, u.email, a.title, a.occupation
     ORDER BY u.name ASC
     LIMIT 50
   `;
@@ -93,6 +94,7 @@ export async function GET(request: Request) {
     verifiers: verifiers.map((entry) => ({
       id: entry.id,
       name: entry.name,
+      email: entry.email,
       title: formatTitle(entry.title),
       occupation: entry.occupation ?? "Administration",
     })),

@@ -71,6 +71,7 @@ interface EditState {
 interface VerifierOption {
   id: number;
   name: string;
+  email: string;
   title: string;
   occupation: string;
 }
@@ -836,7 +837,11 @@ function AchievementEntryRow({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const normalizedQuery = verifierSearch.trim().toLowerCase();
   const filteredVerifiers = normalizedQuery
-    ? verifiers.filter((verifier) => verifier.name.toLowerCase().includes(normalizedQuery))
+    ? verifiers.filter(
+        (verifier) =>
+          verifier.name.toLowerCase().includes(normalizedQuery) ||
+          verifier.email.toLowerCase().includes(normalizedQuery),
+      )
     : verifiers;
   const activeOptionId =
     dropdownOpen && highlightedIndex >= 0 && highlightedIndex < filteredVerifiers.length
@@ -1011,7 +1016,7 @@ function AchievementEntryRow({
                   setHighlightedIndex(-1);
                 }, 120);
               }}
-              placeholder="Search verifier name"
+              placeholder="Search verifier name or email"
               className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 pr-9 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
             />
             {verifierSearch ? (
