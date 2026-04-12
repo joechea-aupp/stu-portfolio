@@ -3,6 +3,8 @@ import { getPrismaClient } from "@/lib/prisma";
 import { Classification, Prisma } from "@prisma/client";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import type { SocialLinks } from "@/types/student";
+import { normalizeMajorName } from "@/lib/majors";
+import { resolveStudentImageUrl } from "@/lib/profile-images";
 
 function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
@@ -106,6 +108,17 @@ export async function GET() {
   }
 
   const prisma = getPrismaClient();
+  const majorOptions = await prisma.major.findMany({
+    where: {
+      is_active: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+    select: {
+      name: true,
+    },
+  });
 
   try {
     const user = await prisma.users.findUnique({
@@ -114,7 +127,11 @@ export async function GET() {
         name: true,
         student: {
           select: {
-            major: true,
+            major: {
+              select: {
+                name: true,
+              },
+            },
             graduation_year: true,
             classification: true,
             available_for_project: true,
@@ -134,24 +151,29 @@ export async function GET() {
     }
 
     if (!user.student) {
-      return Response.json({ draft: null, user: { name: user.name } });
+      return Response.json({
+        draft: null,
+        user: { name: user.name },
+        majorOptions: majorOptions.map((entry) => entry.name),
+      });
     }
 
     return Response.json({
       draft: {
         name: user.name,
-        major: user.student.major,
+        major: user.student.major?.name ?? "",
         graduationYear: String(user.student.graduation_year),
         year: user.student.classification.toLowerCase(),
         availableForProject: user.student.available_for_project,
         summary: user.student.summary ?? "",
-        imageUrl: user.student.image_url ?? "",
+        imageUrl: resolveStudentImageUrl(user.student.image_url),
         skills: Array.isArray(user.student.skills) ? user.student.skills : [],
         projects: Array.isArray(user.student.projects) ? user.student.projects : [],
         achievements: Array.isArray(user.student.achievements) ? user.student.achievements : [],
         socialLinks: normalizeSocialLinks(user.student.social_links),
       },
       user: { name: user.name },
+      majorOptions: majorOptions.map((entry) => entry.name),
     });
   } catch (error) {
     if (isSocialLinksColumnError(error)) {
@@ -162,7 +184,11 @@ export async function GET() {
             name: true,
             student: {
               select: {
-                major: true,
+                major: {
+                  select: {
+                    name: true,
+                  },
+                },
                 graduation_year: true,
                 classification: true,
                 available_for_project: true,
@@ -181,18 +207,22 @@ export async function GET() {
         }
 
         if (!fallbackUser.student) {
-          return Response.json({ draft: null, user: { name: fallbackUser.name } });
+          return Response.json({
+            draft: null,
+            user: { name: fallbackUser.name },
+            majorOptions: majorOptions.map((entry) => entry.name),
+          });
         }
 
         return Response.json({
           draft: {
             name: fallbackUser.name,
-            major: fallbackUser.student.major,
+            major: fallbackUser.student.major?.name ?? "",
             graduationYear: String(fallbackUser.student.graduation_year),
             year: fallbackUser.student.classification.toLowerCase(),
             availableForProject: fallbackUser.student.available_for_project,
             summary: fallbackUser.student.summary ?? "",
-            imageUrl: fallbackUser.student.image_url ?? "",
+            imageUrl: resolveStudentImageUrl(fallbackUser.student.image_url),
             skills: Array.isArray(fallbackUser.student.skills) ? fallbackUser.student.skills : [],
             projects: Array.isArray(fallbackUser.student.projects)
               ? fallbackUser.student.projects
@@ -203,6 +233,7 @@ export async function GET() {
             socialLinks: {},
           },
           user: { name: fallbackUser.name },
+          majorOptions: majorOptions.map((entry) => entry.name),
         });
       } catch (fallbackError) {
         const message =
@@ -262,6 +293,20 @@ export async function POST(request: Request) {
   const prisma = getPrismaClient();
   const normalizedSocialLinks = normalizeSocialLinks(socialLinks);
   const socialLinksPayload = toSocialLinksJson(normalizedSocialLinks);
+  const normalizedMajor = normalizeMajorName(String(major));
+  const majorOption = await prisma.major.findFirst({
+    where: {
+      name: normalizedMajor,
+      is_active: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!majorOption) {
+    return Response.json({ error: "major must be one of the active predefined majors." }, { status: 400 });
+  }
 
   try {
     const student = await prisma.student.upsert({
@@ -269,7 +314,7 @@ export async function POST(request: Request) {
         user_id: userId,
       },
       update: {
-        major: String(major),
+        major_id: majorOption.id,
         graduation_year: gradYearInt,
         classification: classificationKey,
         available_for_project: Boolean(availableForProject),
@@ -282,7 +327,7 @@ export async function POST(request: Request) {
       },
       create: {
         user_id: userId,
-        major: String(major),
+        major_id: majorOption.id,
         graduation_year: gradYearInt,
         classification: classificationKey,
         available_for_project: Boolean(availableForProject),
@@ -314,7 +359,7 @@ export async function POST(request: Request) {
             user_id: userId,
           },
           update: {
-            major: String(major),
+            major_id: majorOption.id,
             graduation_year: gradYearInt,
             classification: classificationKey,
             available_for_project: Boolean(availableForProject),
@@ -326,7 +371,7 @@ export async function POST(request: Request) {
           },
           create: {
             user_id: userId,
-            major: String(major),
+            major_id: majorOption.id,
             graduation_year: gradYearInt,
             classification: classificationKey,
             available_for_project: Boolean(availableForProject),

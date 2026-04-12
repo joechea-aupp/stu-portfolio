@@ -8,7 +8,12 @@ import type { AdministrationGender, AdministrationProfile, AdministrationTitle }
 import { PageLayout } from "@/components/layout/PageLayout";
 import { AdministrationUserManager } from "@/components/onboard/AdministrationUserManager";
 import { AchievementVerificationManager } from "@/components/onboard/AchievementVerificationManager";
+import { StudentMajorsManager } from "@/components/onboard/StudentMajorsManager";
 import { OnboardProfileSkeleton } from "@/components/onboard/OnboardProfileSkeleton";
+import {
+  DEFAULT_ADMINISTRATION_IMAGE_URL,
+  resolveAdministrationImageUrl,
+} from "@/lib/profile-images";
 
 interface DraftResponse {
   draft?: AdministrationProfile | null;
@@ -34,7 +39,7 @@ interface EditState {
   profilePicUrl: string;
 }
 
-type AdministrationTab = "profile" | "users" | "rbac" | "achievements";
+type AdministrationTab = "profile" | "users" | "rbac" | "majors" | "achievements";
 
 const TITLES: Array<{ value: AdministrationTitle; label: string }> = [
   { value: "MR", label: "Mr." },
@@ -109,7 +114,7 @@ export default function AdministrationOnboardPage() {
           phoneNumber: "",
           gender: "",
           summary: "",
-          profilePicUrl: "",
+          profilePicUrl: DEFAULT_ADMINISTRATION_IMAGE_URL,
         };
 
         const draft = payload.draft ?? fallbackDraft;
@@ -122,10 +127,10 @@ export default function AdministrationOnboardPage() {
           phoneNumber: draft.phoneNumber,
           gender: normalizeGender(draft.gender),
           summary: draft.summary,
-          profilePicUrl: draft.profilePicUrl,
+          profilePicUrl: resolveAdministrationImageUrl(draft.profilePicUrl),
         });
         setLoadError(null);
-        setPreview(draft.profilePicUrl || null);
+        setPreview(resolveAdministrationImageUrl(draft.profilePicUrl));
       } catch {
         if (active) {
           setLoadError("Unable to load administration profile.");
@@ -181,6 +186,11 @@ export default function AdministrationOnboardPage() {
     userPermissions.includes("roles.update") ||
     userPermissions.includes("roles.assign");
   const canAccessAchievementTab = userPermissions.includes("achievements.verify");
+  const canAccessMajorsTab =
+    userPermissions.includes("majors.view") ||
+    userPermissions.includes("majors.create") ||
+    userPermissions.includes("majors.edit") ||
+    userPermissions.includes("majors.toggle-active");
 
   useEffect(() => {
     const requestedTab = searchParams.get("tab");
@@ -203,8 +213,13 @@ export default function AdministrationOnboardPage() {
 
     if (activeTab === "achievements" && !canAccessAchievementTab) {
       setActiveTab("profile");
+      return;
     }
-  }, [activeTab, canAccessAchievementTab, canAccessRbacTab, canAccessUsersTab]);
+
+    if (activeTab === "majors" && !canAccessMajorsTab) {
+      setActiveTab("profile");
+    }
+  }, [activeTab, canAccessAchievementTab, canAccessMajorsTab, canAccessRbacTab, canAccessUsersTab]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -241,7 +256,7 @@ export default function AdministrationOnboardPage() {
       );
     } catch (uploadError) {
       setSaveFeedback(uploadError instanceof Error ? uploadError.message : "Upload failed.");
-      setPreview(null);
+      setPreview(resolveAdministrationImageUrl(state?.profilePicUrl));
     } finally {
       setUploading(false);
     }
@@ -390,6 +405,20 @@ export default function AdministrationOnboardPage() {
               aria-pressed={activeTab === "achievements"}
             >
               Achievements
+            </button>
+          ) : null}
+          {canAccessMajorsTab ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab("majors")}
+              className={`min-w-24 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+                activeTab === "majors"
+                  ? "bg-[var(--color-accent)] text-white"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              }`}
+              aria-pressed={activeTab === "majors"}
+            >
+              Majors
             </button>
           ) : null}
         </div>
@@ -594,6 +623,8 @@ export default function AdministrationOnboardPage() {
         <AdministrationUserManager className="mt-6" tab="users" />
       ) : activeTab === "rbac" ? (
         <AdministrationUserManager className="mt-6" tab="rbac" />
+      ) : activeTab === "majors" ? (
+        <StudentMajorsManager className="mt-6" />
       ) : (
         <AchievementVerificationManager className="mt-6" />
       )}

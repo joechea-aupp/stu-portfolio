@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { AcademicYear } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { PREDEFINED_MAJORS } from "@/lib/majors";
+import { DEFAULT_STUDENT_IMAGE_URL } from "@/lib/profile-images";
 
 const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
   { value: "freshman", label: "Freshman" },
@@ -15,15 +17,64 @@ const CLASSIFICATIONS: { value: AcademicYear; label: string }[] = [
 
 export default function OnboardPage() {
   const router = useRouter();
-  const [preview, setPreview] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string>("");
+  const [preview, setPreview] = useState<string | null>(DEFAULT_STUDENT_IMAGE_URL);
+  const [imageUrl, setImageUrl] = useState<string>(DEFAULT_STUDENT_IMAGE_URL);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [major, setMajor] = useState("");
+  const [majorOptions, setMajorOptions] = useState<string[]>([...PREDEFINED_MAJORS]);
   const [graduationYear, setGraduationYear] = useState("");
   const [year, setYear] = useState<AcademicYear | "">("");
   const [availableForProject, setAvailableForProject] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/onboard", {
+          method: "GET",
+          cache: "no-store",
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        if (response.status === 401) {
+          router.replace("/login");
+          return;
+        }
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          majorOptions?: string[];
+          draft?: {
+            major?: string;
+          };
+        };
+
+        const activeMajors = Array.isArray(payload.majorOptions) ? payload.majorOptions : [];
+        if (activeMajors.length > 0) {
+          setMajorOptions(activeMajors);
+        }
+
+        const draftMajor = typeof payload.draft?.major === "string" ? payload.draft.major : "";
+        if (draftMajor) {
+          setMajor((current) => current || draftMajor);
+        }
+      } catch {
+        // Keep predefined fallback majors when the request fails.
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [router]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -45,7 +96,7 @@ export default function OnboardPage() {
       setImageUrl(payload.url ?? "");
     } catch (error) {
       alert(error instanceof Error ? error.message : "Upload failed.");
-      setPreview(null);
+      setPreview(DEFAULT_STUDENT_IMAGE_URL);
     } finally {
       setUploading(false);
     }
@@ -53,6 +104,19 @@ export default function OnboardPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitError(null);
+
+    if (!major || !graduationYear || !year) {
+      setSubmitError("Please fill in major, graduation year, and classification.");
+      return;
+    }
+
+    const yearInt = Number.parseInt(graduationYear, 10);
+    if (!Number.isFinite(yearInt) || yearInt < 2000 || yearInt > 2100) {
+      setSubmitError("Graduation year must be a number between 2000 and 2100.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -61,6 +125,7 @@ export default function OnboardPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           major,
           graduationYear,
@@ -75,13 +140,19 @@ export default function OnboardPage() {
       });
 
       const payload = (await response.json()) as { error?: string };
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to save onboarding details.");
+        setSubmitError(payload.error ?? "Unable to save onboarding details.");
+        return;
       }
 
       router.push("/onboard/profile");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Unable to save onboarding details.");
+      setSubmitError(error instanceof Error ? error.message : "Unable to save onboarding details.");
     } finally {
       setSubmitting(false);
     }
@@ -156,15 +227,25 @@ export default function OnboardPage() {
               <label htmlFor="major" className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
                 Major
               </label>
-              <input
-                id="major"
-                type="text"
-                required
-                placeholder="e.g. Computer Science"
-                value={major}
-                onChange={(e) => setMajor(e.target.value)}
-                className="border-[2px] border-[var(--color-border)] bg-transparent px-3 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/50 outline-none transition focus:border-[var(--color-accent)]"
-              />
+              <div className="relative">
+                <select
+                  id="major"
+                  required
+                  value={major}
+                  onChange={(e) => setMajor(e.target.value)}
+                  className="w-full cursor-pointer appearance-none border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 pr-8 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
+                >
+                  <option value="" disabled>
+                    Select major
+                  </option>
+                  {majorOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <ChevronIcon />
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -230,6 +311,12 @@ export default function OnboardPage() {
             >
               {submitting ? "Saving..." : "Submit & get featured"}
             </button>
+
+            {submitError ? (
+              <p className="text-xs text-red-700" role="alert">
+                {submitError}
+              </p>
+            ) : null}
           </form>
         </div>
       </div>

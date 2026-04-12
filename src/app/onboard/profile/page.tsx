@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AcademicYear, SocialLinks, TimelineItem } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { OnboardProfileSkeleton } from "@/components/onboard/OnboardProfileSkeleton";
+import { DEFAULT_STUDENT_IMAGE_URL, resolveStudentImageUrl } from "@/lib/profile-images";
 
 interface DraftProfile {
   name: string;
@@ -92,12 +93,15 @@ function getActiveSocialLinkOptions(socialLinks: SocialLinks) {
 
 export default function OnboardProfilePage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<EditState | null>(null);
+  const [majorOptions, setMajorOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [skillInput, setSkillInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [pendingSocialLink, setPendingSocialLink] = useState<SocialLinkKey | "">("");
   const [verifiers, setVerifiers] = useState<VerifierOption[]>([]);
   const [verifierSearchByIndex, setVerifierSearchByIndex] = useState<Record<number, string>>({});
@@ -115,6 +119,7 @@ export default function OnboardProfilePage() {
         const response = await fetch("/api/onboard", {
           method: "GET",
           cache: "no-store",
+          credentials: "include",
           signal: controller.signal,
         });
 
@@ -135,6 +140,7 @@ export default function OnboardProfilePage() {
         const payload = (await response.json()) as {
           draft?: DraftProfile | null;
           user?: { name?: string };
+          majorOptions?: string[];
         };
         const fallbackDraft: DraftProfile = {
           name: payload.user?.name?.trim() || "Student",
@@ -142,7 +148,7 @@ export default function OnboardProfilePage() {
           graduationYear: "",
           year: "freshman",
           availableForProject: false,
-          imageUrl: "",
+          imageUrl: DEFAULT_STUDENT_IMAGE_URL,
           projects: [],
           achievements: [],
           summary: "",
@@ -150,6 +156,7 @@ export default function OnboardProfilePage() {
           socialLinks: {},
         };
         const draft = payload.draft ?? fallbackDraft;
+        setMajorOptions(Array.isArray(payload.majorOptions) ? payload.majorOptions : []);
 
         setState({
           draft,
@@ -162,6 +169,7 @@ export default function OnboardProfilePage() {
       } catch {
         if (controller.signal.aborted) return;
         setLoadError("Unable to load your profile draft.");
+        setMajorOptions([]);
         setState(null);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -200,6 +208,7 @@ export default function OnboardProfilePage() {
         const response = await fetch("/api/onboard/achievement-verifications/verifiers", {
           method: "GET",
           cache: "no-store",
+          credentials: "include",
         });
 
         if (!active || !response.ok) {
@@ -269,6 +278,9 @@ export default function OnboardProfilePage() {
     );
   }
   const { draft, skills, projects, achievements, summary, socialLinks } = state;
+  const selectableMajorOptions = draft.major && !majorOptions.includes(draft.major)
+    ? [draft.major, ...majorOptions]
+    : majorOptions;
   const visibleAchievements = achievements
     .map((entry, index) => ({ entry, index }))
     .filter(({ entry }) => !entry.archivedAt);
@@ -415,6 +427,7 @@ export default function OnboardProfilePage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           achievementIndex,
           verifierUserId: selectedVerifier,
@@ -428,6 +441,11 @@ export default function OnboardProfilePage() {
       };
 
       if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/login");
+          return;
+        }
+
         setSaveFeedback(payload.error ?? "Unable to submit verification request.");
         return;
       }
@@ -508,12 +526,93 @@ export default function OnboardProfilePage() {
     });
   }
 
+  async function handleProfilePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const previousImageUrl = draft.imageUrl;
+    const localPreviewUrl = URL.createObjectURL(file);
+
+    setState((current) =>
+      current
+        ? {
+            ...current,
+            draft: {
+              ...current.draft,
+              imageUrl: localPreviewUrl,
+            },
+          }
+        : current,
+    );
+    setPhotoUploading(true);
+    setSaveFeedback(null);
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+
+      const response = await fetch("/api/upload/avatar", {
+        method: "POST",
+        body: form,
+      });
+
+      const payload = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Upload failed.");
+      }
+
+      setState((current) =>
+        current
+          ? {
+              ...current,
+              draft: {
+                ...current.draft,
+                imageUrl: payload.url ?? previousImageUrl,
+              },
+            }
+          : current,
+      );
+      setSaveFeedback("Photo uploaded. Click Save profile to persist changes.");
+    } catch (error) {
+      setState((current) =>
+        current
+          ? {
+              ...current,
+              draft: {
+                ...current.draft,
+                imageUrl: previousImageUrl,
+              },
+            }
+          : current,
+      );
+      setSaveFeedback(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      URL.revokeObjectURL(localPreviewUrl);
+      e.target.value = "";
+      setPhotoUploading(false);
+    }
+  }
+
   async function persistProfile(
     nextAchievements: TimelineItem[],
     successMessage: string,
     refreshAfterSave = false,
     showSuccessFeedback = true,
   ): Promise<boolean> {
+    if (!draft.major || !draft.graduationYear || !draft.year) {
+      setSaveFeedback("Please fill in major, graduation year, and classification.");
+      return false;
+    }
+
+    const graduationYearInt = Number.parseInt(String(draft.graduationYear), 10);
+    if (!Number.isFinite(graduationYearInt) || graduationYearInt < 2000 || graduationYearInt > 2100) {
+      setSaveFeedback("Graduation year must be a number between 2000 and 2100.");
+      return false;
+    }
+
     setSaving(true);
     setSaveFeedback(null);
 
@@ -530,6 +629,7 @@ export default function OnboardProfilePage() {
       const response = await fetch("/api/onboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           major: updated.major,
           graduationYear: updated.graduationYear,
@@ -547,6 +647,11 @@ export default function OnboardProfilePage() {
       const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/login");
+          return false;
+        }
+
         setSaveFeedback(payload.error ?? "Failed to save profile.");
         return false;
       }
@@ -585,20 +690,27 @@ export default function OnboardProfilePage() {
 
         {/* Identity summary */}
         <div className="mb-8 mt-6 flex items-center gap-4">
-          <div className="relative h-16 w-16 flex-shrink-0 border-[2px] border-[var(--color-brand)] overflow-hidden bg-[var(--color-bg)]">
-            {draft.imageUrl && (
-              <Image
-                src={draft.imageUrl}
-                alt={
-                  typeof draft.name === "string" && draft.name.trim().length > 0
-                    ? `${draft.name} profile photo`
-                    : "Student profile photo"
-                }
-                fill
-                className="object-cover"
-              />
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={photoUploading}
+            className="relative h-16 w-16 flex-shrink-0 overflow-hidden border-[2px] border-[var(--color-brand)] bg-[var(--color-bg)] transition hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Update profile photo"
+          >
+            <Image
+              src={resolveStudentImageUrl(draft.imageUrl)}
+              alt={
+                typeof draft.name === "string" && draft.name.trim().length > 0
+                  ? `${draft.name} profile photo`
+                  : "Student profile photo"
+              }
+              fill
+              className="object-cover"
+            />
+            <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-center text-[8px] uppercase tracking-[0.12em] text-white">
+              {photoUploading ? "Uploading..." : "Change"}
+            </span>
+          </button>
           <div>
             <p className="font-heading text-xl uppercase text-[var(--color-text)] leading-tight">{draft.name}</p>
             <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
@@ -606,8 +718,17 @@ export default function OnboardProfilePage() {
               {draft.graduationYear ? ` · ${draft.graduationYear}` : ""}
               {` · ${draft.year}`}
             </p>
+            <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">Click photo to update</p>
           </div>
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          className="sr-only"
+          onChange={handleProfilePhotoChange}
+        />
 
         <form onSubmit={handleSave} className="flex flex-col gap-10">
 
@@ -616,14 +737,21 @@ export default function OnboardProfilePage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Major</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Computer Science"
+                <select
                   value={draft.major}
                   onChange={(e) => setState((s) => s && ({ ...s, draft: { ...s.draft, major: e.target.value } }))}
-                  className={inputCls}
+                  className="w-full cursor-pointer appearance-none border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 pr-8 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
                   required
-                />
+                >
+                  <option value="" disabled>
+                    Select major
+                  </option>
+                  {selectableMajorOptions.map((major) => (
+                    <option key={major} value={major}>
+                      {major}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex flex-col gap-1">

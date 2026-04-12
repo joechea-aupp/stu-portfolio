@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaClient, Classification } from "@prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { students } from "../src/data/students";
+import { PREDEFINED_MAJORS, normalizeMajorName, isPredefinedMajor } from "../src/lib/majors";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -37,6 +38,31 @@ function mapClassification(year: string): Classification {
 async function seed() {
   const defaultPassword = process.env.SEED_USER_PASSWORD ?? "ChangeMe123!";
 
+  for (const majorName of PREDEFINED_MAJORS) {
+    await prisma.major.upsert({
+      where: { name: majorName },
+      update: {
+        is_active: true,
+      },
+      create: {
+        id: randomUUID(),
+        name: majorName,
+        is_active: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+  }
+
+  const majors = await prisma.major.findMany({
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+  const majorIdByName = new Map(majors.map((major) => [major.name, major.id]));
+
   for (const student of students) {
     const email = `${student.id}@seed.local`;
 
@@ -55,12 +81,22 @@ async function seed() {
       },
     });
 
+    const normalizedMajor = normalizeMajorName(student.major);
+    const canonicalMajor = isPredefinedMajor(normalizedMajor)
+      ? normalizedMajor
+      : "Bachelor of Science in Software Development";
+    const majorId = majorIdByName.get(canonicalMajor);
+
+    if (!majorId) {
+      throw new Error(`Missing seeded major ID for: ${canonicalMajor}`);
+    }
+
     await prisma.student.upsert({
       where: {
         user_id: user.id,
       },
       update: {
-        major: student.major,
+        major_id: majorId,
         graduation_year: new Date().getFullYear() + (student.year === "freshman" ? 4 : student.year === "sophomore" ? 3 : student.year === "junior" ? 2 : 1),
         classification: mapClassification(student.year),
         available_for_project: student.available,
@@ -73,7 +109,7 @@ async function seed() {
       create: {
         id: randomUUID(),
         user_id: user.id,
-        major: student.major,
+        major_id: majorId,
         graduation_year: new Date().getFullYear() + (student.year === "freshman" ? 4 : student.year === "sophomore" ? 3 : student.year === "junior" ? 2 : 1),
         classification: mapClassification(student.year),
         available_for_project: student.available,
