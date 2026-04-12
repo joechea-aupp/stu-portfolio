@@ -13,7 +13,7 @@ export interface Verifier {
   role?: string;
   title?: string;
   occupation?: string;
-  userId?: number;
+  userId?: string;
 }
 
 export interface TimelineItem {
@@ -24,7 +24,7 @@ export interface TimelineItem {
   verifiedBy?: Verifier;
   pendingVerification?: {
     requestedAt: string;
-    verifierUserId: number;
+    verifierUserId: string;
     verifierName: string;
   };
   /** URL-safe identifier used to route to the item's detail page. */
@@ -60,7 +60,7 @@ export interface AdministrationProfile {
   occupation: string;
   company: string;
   phoneNumber: string;
-  gender: AdministrationGender;
+  gender: AdministrationGender | "";
   summary: string;
   profilePicUrl: string;
   title: AdministrationTitle;

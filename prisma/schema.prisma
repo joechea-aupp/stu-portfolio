@@ -7,7 +7,7 @@ datasource db {
 }
 
 model users {
-  id       Int      @id @default(autoincrement())
+  id       String   @id @default(uuid()) @db.Char(36)
   name      String
   email     String   @unique
   password  String
@@ -41,8 +41,8 @@ enum AdministrationTitle {
 }
 
 model Student {
-  id Int @id @default(autoincrement())
-  user_id Int @unique
+  id String @id @default(uuid()) @db.Char(36)
+  user_id String @unique @db.Char(36)
   major String
   graduation_year Int
   classification Classification
@@ -65,13 +65,13 @@ model Student {
 
 model AchievementVerificationRequest {
   id                       Int      @id @default(autoincrement())
-  student_id               Int
+  student_id               String   @db.Char(36)
   achievement_index        Int
-  assigned_verifier_user_id Int
+  assigned_verifier_user_id String @db.Char(36)
   status                   String   @default("PENDING")
   requested_at             DateTime @default(now())
   reviewed_at              DateTime?
-  reviewed_by_id           Int?
+  reviewed_by_id           String? @db.Char(36)
   rejection_reason         String?  @db.Text
   student                  Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
   assigned_verifier        users    @relation("AssignedAchievementVerifier", fields: [assigned_verifier_user_id], references: [id], onDelete: Cascade)
@@ -84,8 +84,8 @@ model AchievementVerificationRequest {
 }
 
 model Administration {
-  id              Int                 @id @default(autoincrement())
-  user_id         Int                 @unique
+  id              String              @id @default(uuid()) @db.Char(36)
+  user_id         String              @unique @db.Char(36)
   occupation      String
   company         String
   phone_number    String
@@ -100,8 +100,8 @@ model Administration {
 
 model StudentKudo {
   id         Int     @id @default(autoincrement())
-  user_id    Int
-  student_id Int
+  user_id    String  @db.Char(36)
+  student_id String  @db.Char(36)
   user       users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   student    Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
@@ -147,7 +147,7 @@ model RolePermission {
 
 model UserRole {
   id        Int      @id @default(autoincrement())
-  user_id   Int
+  user_id   String   @db.Char(36)
   role_id   Int
   user      users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   role      Role     @relation(fields: [role_id], references: [id], onDelete: Cascade)

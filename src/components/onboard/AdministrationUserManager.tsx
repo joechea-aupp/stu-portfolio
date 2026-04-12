@@ -25,7 +25,7 @@ interface RoleWithPermissions {
 }
 
 interface ManagedUser {
-  id: number;
+  id: string;
   name: string;
   email: string;
   userType: ManagedUserType;
@@ -41,7 +41,7 @@ interface ApiPayload {
   updated?: ManagedUser;
   roles?: RoleWithPermissions[];
   permissions?: ManagedPermission[];
-  currentUserId?: number;
+  currentUserId?: string;
   currentUserPermissions?: string[];
   error?: string;
 }
@@ -70,16 +70,16 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [permissions, setPermissions] = useState<ManagedPermission[]>([]);
 
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserPermissions, setCurrentUserPermissions] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
-  const [busyUserId, setBusyUserId] = useState<number | null>(null);
+  const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
-  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
 
-  const [resettingUserId, setResettingUserId] = useState<number | null>(null);
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
   const [passwordResetDraft, setPasswordResetDraft] = useState<PasswordResetDraft | null>(null);
   const [passwordResetError, setPasswordResetError] = useState<string | null>(null);
 
@@ -185,7 +185,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
       setUsers(payload.users ?? []);
       setRoles(payload.roles ?? []);
       setPermissions(payload.permissions ?? []);
-      setCurrentUserId(typeof payload.currentUserId === "number" ? payload.currentUserId : null);
+      setCurrentUserId(typeof payload.currentUserId === "string" ? payload.currentUserId : null);
       setCurrentUserPermissions(payload.currentUserPermissions ?? []);
       setPage(1);
     } catch {
@@ -209,7 +209,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
   }
 
   async function runUserAction(input: Record<string, unknown>): Promise<ManagedUser | null> {
-    const targetId = typeof input.userId === "number" ? input.userId : null;
+    const targetId = typeof input.userId === "string" ? input.userId : null;
     if (!targetId) {
       return null;
     }
@@ -398,7 +398,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
     setEditDraft(null);
   }
 
-  function startResetPassword(userId: number) {
+  function startResetPassword(userId: string) {
     setEditingUserId(null);
     setEditDraft(null);
     setResettingUserId(userId);
@@ -415,7 +415,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
     setPasswordResetError(null);
   }
 
-  async function submitEdit(userId: number) {
+  async function submitEdit(userId: string) {
     if (!editDraft) {
       return;
     }

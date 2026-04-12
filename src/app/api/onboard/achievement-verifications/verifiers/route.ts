@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import { getPrismaClient } from "@/lib/prisma";
 
-function parseSessionUserId(rawCookie: string | undefined): number | null {
+function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
     return null;
   }
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 
   const prisma = getPrismaClient();
   const verifiers = await prisma.$queryRaw<
-    Array<{ id: number; name: string; email: string; title: string | null; occupation: string | null }>
+    Array<{ id: string; name: string; email: string; title: string | null; occupation: string | null }>
   >`
     SELECT
       u.id,

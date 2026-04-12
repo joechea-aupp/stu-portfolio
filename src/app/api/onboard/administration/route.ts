@@ -3,7 +3,7 @@ import { AdministrationTitle } from "@prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 
-function parseSessionUserId(rawCookie: string | undefined): number | null {
+function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
     return null;
   }

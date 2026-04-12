@@ -69,7 +69,7 @@ interface EditState {
 }
 
 interface VerifierOption {
-  id: number;
+  id: string;
   name: string;
   email: string;
   title: string;
@@ -388,9 +388,9 @@ export default function OnboardProfilePage() {
   }
 
   async function requestAchievementVerification(achievementIndex: number) {
-    const selectedVerifier = Number.parseInt(selectedVerifierByIndex[achievementIndex] ?? "", 10);
+    const selectedVerifier = selectedVerifierByIndex[achievementIndex] ?? "";
 
-    if (!Number.isInteger(selectedVerifier) || selectedVerifier <= 0) {
+    if (!selectedVerifier) {
       setSaveFeedback("Please select a verifier before sending request.");
       return;
     }
@@ -424,7 +424,7 @@ export default function OnboardProfilePage() {
       const payload = (await response.json()) as {
         error?: string;
         requestedAt?: string;
-        verifier?: { id: number; name: string };
+        verifier?: { id: string; name: string };
       };
 
       if (!response.ok) {

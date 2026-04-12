@@ -3,6 +3,7 @@ import { getPrismaClient } from "@/lib/prisma";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import { hashPassword } from "@/lib/password";
 import { ensureRbacBootstrap } from "@/lib/rbac-bootstrap";
+import { isValidUuid } from "@/lib/uuid";
 import {
   getAllPermissions,
   getAllRolesWithPermissions,
@@ -15,7 +16,7 @@ type UserType = "STUDENT" | "ADMINISTRATION";
 type UserAction = "enable" | "disable" | "edit" | "resetPassword" | "assignRole";
 
 interface UpdatePayload {
-  userId: number;
+  userId: string;
   action: UserAction;
   name?: string;
   email?: string;
@@ -24,13 +25,17 @@ interface UpdatePayload {
   roleId?: number | null;
 }
 
-function parseSessionUserId(rawCookie: string | undefined): number | null {
+function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
     return null;
   }
 
   const session = verifySessionToken(rawCookie);
   return session?.userId ?? null;
+}
+
+function parseUuid(value: unknown): string | null {
+  return isValidUuid(value) ? value : null;
 }
 
 function parsePositiveInteger(value: unknown): number | null {
@@ -95,7 +100,7 @@ async function requireAdminSession() {
   };
 }
 
-async function buildUserSummary(userId: number) {
+async function buildUserSummary(userId: string) {
   const prisma = getPrismaClient();
 
   const user = await prisma.users.findUnique({
@@ -190,14 +195,14 @@ export async function GET() {
     },
   });
 
-  const userRoleRows = await prisma.$queryRaw<Array<{ user_id: number; role_id: number; role_name: string }>>`
+  const userRoleRows = await prisma.$queryRaw<Array<{ user_id: string; role_id: number; role_name: string }>>`
     SELECT ur.user_id, r.id AS role_id, r.name AS role_name
     FROM user_roles ur
     JOIN roles r ON r.id = ur.role_id
     ORDER BY ur.user_id ASC, r.name ASC
   `;
 
-  const userPermissionRows = await prisma.$queryRaw<Array<{ user_id: number; permission_key: string }>>`
+  const userPermissionRows = await prisma.$queryRaw<Array<{ user_id: string; permission_key: string }>>`
     SELECT DISTINCT ur.user_id, p.key AS permission_key
     FROM user_roles ur
     JOIN role_permissions rp ON rp.role_id = ur.role_id
@@ -205,8 +210,8 @@ export async function GET() {
     ORDER BY ur.user_id ASC, p.key ASC
   `;
 
-  const rolesByUserId = new Map<number, Array<{ id: number; name: string }>>();
-  const permissionsByUserId = new Map<number, string[]>();
+  const rolesByUserId = new Map<string, Array<{ id: number; name: string }>>();
+  const permissionsByUserId = new Map<string, string[]>();
 
   for (const row of userRoleRows) {
     const current = rolesByUserId.get(row.user_id) ?? [];
@@ -262,10 +267,10 @@ export async function PATCH(request: Request) {
   }
 
   const payload = body as Partial<UpdatePayload>;
-  const userId = parsePositiveInteger(payload.userId);
+  const userId = parseUuid(payload.userId);
 
   if (!userId) {
-    return Response.json({ error: "userId must be a positive integer." }, { status: 400 });
+    return Response.json({ error: "userId must be a UUID." }, { status: 400 });
   }
 
   const action = payload.action;
