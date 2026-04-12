@@ -1003,6 +1003,7 @@ function AchievementEntryRow({
     entry.period.trim().length > 0 &&
     !entry.verifiedBy &&
     !entry.pendingVerification;
+  const isVerified = Boolean(entry.verifiedBy);
   const displayTitle = entry.title.trim().length > 0 ? entry.title : "Untitled achievement";
   const displayPeriod = entry.period.trim();
 
@@ -1089,7 +1090,7 @@ function AchievementEntryRow({
               onClick={onExpand}
               className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
             >
-              Edit
+              {isVerified ? "Detail" : "Edit"}
             </button>
           ) : (
             <button
@@ -1128,38 +1129,61 @@ function AchievementEntryRow({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Title</label>
-              <input
-                type="text"
-                placeholder="e.g. Final Year Project"
-                value={entry.title}
-                onChange={(e) => onChange("title", e.target.value)}
-                className={inputCls}
-              />
+          {isVerified ? (
+            <div className="flex flex-col gap-3 border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Title</p>
+                  <p className="mt-1 text-sm text-[var(--color-text)]">{displayTitle}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Period</p>
+                  <p className="mt-1 text-sm text-[var(--color-text)]">{displayPeriod || "No period added"}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Details</p>
+                <p className="mt-1 text-sm text-[var(--color-text)] whitespace-pre-wrap">
+                  {(entry.details ?? "").trim() || "No details added"}
+                </p>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Period</label>
-              <input
-                type="text"
-                placeholder="e.g. Jan 2025 - Apr 2025"
-                value={entry.period}
-                onChange={(e) => onChange("period", e.target.value)}
-                className={inputCls}
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Details</label>
-            <textarea
-              rows={2}
-              placeholder="Brief description..."
-              value={entry.details ?? ""}
-              onChange={(e) => onChange("details", e.target.value)}
-              className={`${inputCls} resize-y`}
-            />
-          </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Final Year Project"
+                    value={entry.title}
+                    onChange={(e) => onChange("title", e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Period</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Jan 2025 - Apr 2025"
+                    value={entry.period}
+                    onChange={(e) => onChange("period", e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Details</label>
+                <textarea
+                  rows={2}
+                  placeholder="Brief description..."
+                  value={entry.details ?? ""}
+                  onChange={(e) => onChange("details", e.target.value)}
+                  className={`${inputCls} resize-y`}
+                />
+              </div>
+            </>
+          )}
         </>
       )}
 
