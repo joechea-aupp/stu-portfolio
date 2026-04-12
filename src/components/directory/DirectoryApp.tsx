@@ -8,6 +8,7 @@ import { DirectoryHero } from "@/components/hero/DirectoryHero";
 import { DirectorySearch } from "@/components/search/DirectorySearch";
 import { StudentGrid } from "@/components/cards/StudentGrid";
 import { StudentCardSkeleton } from "@/components/cards/StudentCardSkeleton";
+import { OnboardModal } from "@/components/onboard/OnboardModal";
 import { MobileFilterDrawer } from "@/components/filters/MobileFilterDrawer";
 import { PageLayout } from "@/components/layout/PageLayout";
 
@@ -81,6 +82,7 @@ export function DirectoryApp({ initialKnownSession = false }: DirectoryAppProps)
   const [majorOptions, setMajorOptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [kudoedStudentIds, setKudoedStudentIds] = useState<Set<string>>(new Set());
+  const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
 
   useEffect(() => {
     if (pathname !== "/") {
@@ -319,6 +321,12 @@ export function DirectoryApp({ initialKnownSession = false }: DirectoryAppProps)
           body: JSON.stringify({ action, studentId }),
         });
 
+        if (response.status === 401) {
+          setIsLoggedIn(false);
+          setIsOnboardModalOpen(true);
+          return;
+        }
+
         if (!response.ok) {
           return;
         }
@@ -464,6 +472,8 @@ export function DirectoryApp({ initialKnownSession = false }: DirectoryAppProps)
         }}
         isLoading={isLoading}
       />
+
+      <OnboardModal open={isOnboardModalOpen} onClose={() => setIsOnboardModalOpen(false)} />
     </PageLayout>
   );
 }
