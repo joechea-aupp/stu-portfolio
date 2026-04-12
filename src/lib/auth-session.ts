@@ -5,7 +5,7 @@ export const SESSION_COOKIE_NAME = "studenthub_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 interface SessionPayload {
-  userId: number;
+  userId: string;
   exp: number;
 }
 
@@ -27,7 +27,7 @@ function sign(input: string): string {
   return createHmac("sha256", getSessionSecret()).update(input).digest("base64url");
 }
 
-export function createSessionToken(userId: number): string {
+export function createSessionToken(userId: string): string {
   const exp = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
   const payload = `${userId}.${exp}`;
   const signature = sign(payload);
@@ -54,10 +54,9 @@ export function verifySessionToken(token: string): SessionPayload | null {
     return null;
   }
 
-  const userId = Number.parseInt(userIdRaw, 10);
   const exp = Number.parseInt(expRaw, 10);
 
-  if (!Number.isFinite(userId) || userId <= 0 || !Number.isFinite(exp) || exp <= 0) {
+  if (!userIdRaw || !Number.isFinite(exp) || exp <= 0) {
     return null;
   }
 
@@ -66,7 +65,7 @@ export function verifySessionToken(token: string): SessionPayload | null {
     return null;
   }
 
-  return { userId, exp };
+  return { userId: userIdRaw, exp };
 }
 
 export function getSessionTtlSeconds(): number {

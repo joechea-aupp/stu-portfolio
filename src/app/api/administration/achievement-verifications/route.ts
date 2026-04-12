@@ -31,7 +31,7 @@ function formatAdministrationTitle(value: string | null | undefined): string | u
   return undefined;
 }
 
-function parseSessionUserId(rawCookie: string | undefined): number | null {
+function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
     return null;
   }
@@ -127,10 +127,10 @@ export async function GET(request: Request) {
   const requests = await prisma.$queryRaw<
     Array<{
       id: number;
-      student_id: number;
+      student_id: string;
       student_name: string;
       achievement_index: number;
-      assigned_verifier_user_id: number;
+      assigned_verifier_user_id: string;
       assigned_verifier_name: string;
       status: string;
       requested_at: Date;
@@ -174,7 +174,7 @@ export async function GET(request: Request) {
       })
     : [];
 
-  const achievementMap = new Map<number, TimelineItem[]>();
+  const achievementMap = new Map<string, TimelineItem[]>();
   for (const row of studentRows) {
     achievementMap.set(row.id, parseTimelineItems(row.achievements));
   }
@@ -247,7 +247,7 @@ export async function PATCH(request: Request) {
 
   const prisma = getPrismaClient();
   const requestRows = await prisma.$queryRaw<
-    Array<{ id: number; student_id: number; achievement_index: number; assigned_verifier_user_id: number; status: string }>
+    Array<{ id: number; student_id: string; achievement_index: number; assigned_verifier_user_id: string; status: string }>
   >`
     SELECT id, student_id, achievement_index, assigned_verifier_user_id, status
     FROM achievement_verification_requests
@@ -319,7 +319,7 @@ export async function PATCH(request: Request) {
       await tx.student.update({
         where: { id: student.id },
         data: {
-          achievements: nextAchievements as Prisma.InputJsonValue,
+          achievements: nextAchievements as unknown as Prisma.InputJsonValue,
         },
       });
 

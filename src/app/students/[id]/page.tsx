@@ -40,7 +40,7 @@ function parseVerifiedBy(value: unknown): TimelineItem["verifiedBy"] {
     role: typeof candidate.role === "string" ? candidate.role : undefined,
     title: typeof candidate.title === "string" ? candidate.title : undefined,
     occupation: typeof candidate.occupation === "string" ? candidate.occupation : undefined,
-    userId: typeof candidate.userId === "number" && Number.isInteger(candidate.userId) ? candidate.userId : undefined,
+    userId: typeof candidate.userId === "string" ? candidate.userId : undefined,
   };
 }
 
@@ -167,15 +167,10 @@ function toAcademicYear(value: string): AcademicYear {
 }
 
 async function getDatabaseStudentById(id: string): Promise<Student | null> {
-  const numericId = Number.parseInt(id, 10);
-  if (!Number.isFinite(numericId)) {
-    return null;
-  }
-
   try {
     const prisma = getPrismaClient();
     const dbStudent = await prisma.student.findUnique({
-      where: { id: numericId },
+      where: { id },
       include: {
         user: {
           select: {
@@ -246,7 +241,7 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
     });
 
     return {
-      id: String(dbStudent.id),
+      id: dbStudent.id,
       name: dbStudent.user.name,
       year: toAcademicYear(dbStudent.classification),
       major: dbStudent.major,

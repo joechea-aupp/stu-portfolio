@@ -19,7 +19,7 @@ function parseVerifiedBy(value: unknown): TimelineItem["verifiedBy"] {
     role: typeof candidate.role === "string" ? candidate.role : undefined,
     title: typeof candidate.title === "string" ? candidate.title : undefined,
     occupation: typeof candidate.occupation === "string" ? candidate.occupation : undefined,
-    userId: typeof candidate.userId === "number" && Number.isInteger(candidate.userId) ? candidate.userId : undefined,
+    userId: typeof candidate.userId === "string" ? candidate.userId : undefined,
   };
 }
 
@@ -108,7 +108,7 @@ export async function GET() {
     });
 
     const payload: Student[] = students.map((student) => ({
-      id: String(student.id),
+      id: student.id,
       name: student.user.name,
       year: toAcademicYear(student.classification),
       major: student.major,

@@ -4,7 +4,7 @@ import { getPrismaClient } from "@/lib/prisma";
 import { ensureRbacBootstrap } from "@/lib/rbac-bootstrap";
 import { getUserRbacSnapshot, hasPermission, RBAC_PERMISSION } from "@/lib/rbac";
 
-function parseSessionUserId(rawCookie: string | undefined): number | null {
+function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
     return null;
   }

@@ -1,18 +1,10 @@
 import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import { getPrismaClient } from "@/lib/prisma";
+import { isValidUuid } from "@/lib/uuid";
 
-function parsePositiveInt(raw: string | null): number | null {
-  if (!raw) {
-    return null;
-  }
-
-  const value = Number.parseInt(raw, 10);
-  if (!Number.isFinite(value) || value <= 0) {
-    return null;
-  }
-
-  return value;
+function parseUuid(raw: string | null): string | null {
+  return isValidUuid(raw) ? raw : null;
 }
 
 function isKnownPrismaErrorWithCode(error: unknown, code: string): boolean {
@@ -29,8 +21,8 @@ function isKnownPrismaErrorWithCode(error: unknown, code: string): boolean {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const studentId = parsePositiveInt(searchParams.get("studentId"));
-  const userId = parsePositiveInt(searchParams.get("userId"));
+  const studentId = parseUuid(searchParams.get("studentId"));
+  const userId = parseUuid(searchParams.get("userId"));
 
   if (!studentId && !userId) {
     return Response.json(
@@ -41,7 +33,7 @@ export async function GET(request: Request) {
 
   const prisma = getPrismaClient();
   const student = await prisma.student.findUnique({
-    where: studentId ? { id: studentId } : { user_id: userId as number },
+    where: studentId ? { id: studentId } : { user_id: userId as string },
     select: {
       id: true,
       user_id: true,
@@ -83,19 +75,15 @@ export async function PATCH(request: Request) {
   const rawUserId = payload.userId;
 
   const studentId =
-    typeof rawStudentId === "number"
+    typeof rawStudentId === "string" && isValidUuid(rawStudentId)
       ? rawStudentId
-      : typeof rawStudentId === "string"
-        ? Number.parseInt(rawStudentId, 10)
-        : NaN;
+      : null;
   const userId =
-    typeof rawUserId === "number"
+    typeof rawUserId === "string" && isValidUuid(rawUserId)
       ? rawUserId
-      : typeof rawUserId === "string"
-        ? Number.parseInt(rawUserId, 10)
-        : NaN;
+      : null;
 
-  if (!Number.isFinite(studentId) && !Number.isFinite(userId)) {
+  if (!studentId && !userId) {
     return Response.json({ error: "studentId or userId is required." }, { status: 400 });
   }
 
@@ -115,11 +103,11 @@ export async function PATCH(request: Request) {
 
     const prisma = getPrismaClient();
 
-    // Resolve the target student's numeric id.
+    // Resolve the target student's id.
     const resolvedStudent = await prisma.student.findUnique({
-      where: Number.isFinite(studentId)
+      where: studentId
         ? { id: studentId }
-        : { user_id: userId as number },
+        : { user_id: userId as string },
       select: { id: true, user_id: true, kudo_count: true, view_count: true },
     });
 
@@ -128,7 +116,7 @@ export async function PATCH(request: Request) {
     }
 
     try {
-      let updated: { id: number; user_id: number; kudo_count: number; view_count: number };
+      let updated: { id: string; user_id: string; kudo_count: number; view_count: number };
 
       if (action === "kudo") {
         // Create the kudo record and increment the counter atomically.
@@ -182,9 +170,9 @@ export async function PATCH(request: Request) {
 
   try {
     const updated = await prisma.student.update({
-      where: Number.isFinite(studentId)
+      where: studentId
         ? { id: studentId }
-        : { user_id: userId as number },
+        : { user_id: userId as string },
       data: { view_count: { increment: 1 } },
       select: {
         id: true,

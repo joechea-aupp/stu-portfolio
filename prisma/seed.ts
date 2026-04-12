@@ -1,4 +1,5 @@
 import { randomBytes, scryptSync } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { PrismaClient, Classification } from "@prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { students } from "../src/data/students";
@@ -70,6 +71,7 @@ async function seed() {
         achievements: student.achievements,
       },
       create: {
+        id: randomUUID(),
         user_id: user.id,
         major: student.major,
         graduation_year: new Date().getFullYear() + (student.year === "freshman" ? 4 : student.year === "sophomore" ? 3 : student.year === "junior" ? 2 : 1),

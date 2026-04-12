@@ -3,23 +3,20 @@ import { Prisma } from "@prisma/client";
 import type { TimelineItem } from "@/types/student";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import { getPrismaClient } from "@/lib/prisma";
+import { isValidUuid } from "@/lib/uuid";
 
 interface RequestBody {
   achievementIndex?: number;
-  verifierUserId?: number;
+  verifierUserId?: string;
 }
 
-function parseSessionUserId(rawCookie: string | undefined): number | null {
+function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
     return null;
   }
 
   const session = verifySessionToken(rawCookie);
   return session?.userId ?? null;
-}
-
-function isPositiveInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
 function isValidAchievement(item: TimelineItem | undefined) {
@@ -55,7 +52,7 @@ async function requireStudentUser() {
   }
 
   const achievements = Array.isArray(user.student.achievements)
-    ? (user.student.achievements as TimelineItem[])
+    ? (user.student.achievements as unknown as TimelineItem[])
     : [];
 
   return {
@@ -90,8 +87,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "achievementIndex must be a non-negative integer." }, { status: 400 });
   }
 
-  if (!isPositiveInteger(payload.verifierUserId)) {
-    return Response.json({ error: "verifierUserId must be a positive integer." }, { status: 400 });
+  if (!isValidUuid(payload.verifierUserId)) {
+    return Response.json({ error: "verifierUserId must be a UUID." }, { status: 400 });
   }
 
   const selectedAchievement = auth.achievements[payload.achievementIndex];
@@ -108,7 +105,7 @@ export async function POST(request: Request) {
   }
 
   const prisma = getPrismaClient();
-  const verifierRows = await prisma.$queryRaw<Array<{ id: number; name: string }>>`
+  const verifierRows = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
     SELECT DISTINCT u.id, u.name
     FROM users u
     JOIN user_roles ur ON ur.user_id = u.id
@@ -159,7 +156,7 @@ export async function POST(request: Request) {
       await tx.student.update({
         where: { id: auth.studentId },
         data: {
-          achievements: nextAchievements as Prisma.InputJsonValue,
+          achievements: nextAchievements as unknown as Prisma.InputJsonValue,
         },
       });
 

@@ -4,7 +4,7 @@ import { Classification, Prisma } from "@prisma/client";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import type { SocialLinks } from "@/types/student";
 
-function parseSessionUserId(rawCookie: string | undefined): number | null {
+function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
     return null;
   }

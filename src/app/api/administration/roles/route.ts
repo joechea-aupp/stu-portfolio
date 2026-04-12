@@ -23,7 +23,7 @@ interface RoleCreatePayload {
   description?: string;
 }
 
-function parseSessionUserId(rawCookie: string | undefined): number | null {
+function parseSessionUserId(rawCookie: string | undefined): string | null {
   if (!rawCookie) {
     return null;
   }

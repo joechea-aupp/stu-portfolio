@@ -29,7 +29,7 @@ export interface PermissionSummary {
 }
 
 export interface UserRbacSnapshot {
-  userId: number;
+  userId: string;
   userType: "STUDENT" | "ADMINISTRATION";
   isActive: boolean;
   roles: RoleSummary[];
@@ -61,10 +61,10 @@ export function hasPermission(permissionKeys: string[], permission: string): boo
   return permissionKeys.includes(permission);
 }
 
-export async function getUserRbacSnapshot(userId: number): Promise<UserRbacSnapshot | null> {
+export async function getUserRbacSnapshot(userId: string): Promise<UserRbacSnapshot | null> {
   const prisma = getPrismaClient();
 
-  const userRows = await prisma.$queryRaw<Array<{ id: number; user_type: "STUDENT" | "ADMINISTRATION"; is_active: unknown }>>`
+  const userRows = await prisma.$queryRaw<Array<{ id: string; user_type: "STUDENT" | "ADMINISTRATION"; is_active: unknown }>>`
     SELECT id, user_type, is_active
     FROM users
     WHERE id = ${userId}
