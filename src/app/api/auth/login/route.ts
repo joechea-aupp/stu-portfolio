@@ -8,6 +8,7 @@ import { getUserRbacSnapshot } from "@/lib/rbac";
 interface LoginPayload {
   email: string;
   password: string;
+  cfTurnstileToken: string;
 }
 
 function validate(body: unknown): { ok: true; data: LoginPayload } | { ok: false; error: string } {
@@ -27,7 +28,12 @@ function validate(body: unknown): { ok: true; data: LoginPayload } | { ok: false
     return { ok: false, error: "Please enter a valid email." };
   }
 
-  return { ok: true, data: { email, password } };
+  const cfToken = data.cfTurnstileToken?.trim();
+  if (!cfToken) {
+    return { ok: false, error: "Please complete the CAPTCHA." };
+  }
+
+  return { ok: true, data: { email, password, cfTurnstileToken: cfToken } };
 }
 
 export async function POST(request: Request) {
@@ -46,7 +52,25 @@ export async function POST(request: Request) {
     return Response.json({ error: validation.error }, { status: 400 });
   }
 
-  const { email, password } = validation.data;
+  const { email, password, cfTurnstileToken } = validation.data;
+
+  // Verify Turnstile token with Cloudflare
+  const turnstileRes = await fetch(
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        secret: process.env.TURNSTILE_SECRET_KEY,
+        response: cfTurnstileToken,
+      }),
+    },
+  );
+  const turnstileData = (await turnstileRes.json()) as { success: boolean };
+  if (!turnstileData.success) {
+    return Response.json({ error: "CAPTCHA verification failed. Please try again." }, { status: 400 });
+  }
+
   const prisma = getPrismaClient();
 
   const user = await prisma.users.findUnique({
