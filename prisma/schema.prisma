@@ -18,6 +18,8 @@ model users {
   administration Administration?
   kudos   StudentKudo[]
   user_roles UserRole[]
+  assigned_achievement_verification_requests AchievementVerificationRequest[] @relation("AssignedAchievementVerifier")
+  reviewed_achievement_verification_requests AchievementVerificationRequest[] @relation("ReviewedAchievementVerifier")
 }
 
 enum UserType {
@@ -56,8 +58,29 @@ model Student {
   // user create soley for typescript type safety and relation, authentication handled separately
   user   users         @relation(fields: [user_id], references: [id])
   kudos  StudentKudo[]
+  achievement_verification_requests AchievementVerificationRequest[]
 
   @@map("students")
+}
+
+model AchievementVerificationRequest {
+  id                       Int      @id @default(autoincrement())
+  student_id               Int
+  achievement_index        Int
+  assigned_verifier_user_id Int
+  status                   String   @default("PENDING")
+  requested_at             DateTime @default(now())
+  reviewed_at              DateTime?
+  reviewed_by_id           Int?
+  rejection_reason         String?  @db.Text
+  student                  Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  assigned_verifier        users    @relation("AssignedAchievementVerifier", fields: [assigned_verifier_user_id], references: [id], onDelete: Cascade)
+  reviewed_by              users?   @relation("ReviewedAchievementVerifier", fields: [reviewed_by_id], references: [id], onDelete: SetNull)
+
+  @@index([student_id, status], map: "avr_student_status_idx")
+  @@index([assigned_verifier_user_id, status], map: "avr_verifier_status_idx")
+  @@index([requested_at], map: "avr_requested_at_idx")
+  @@map("achievement_verification_requests")
 }
 
 model Administration {

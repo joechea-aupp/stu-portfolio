@@ -10,14 +10,23 @@ export type ThemeName = "classic" | "slate" | "sunrise";
 
 export interface Verifier {
   name: string;
-  role: string;
+  role?: string;
+  title?: string;
+  occupation?: string;
+  userId?: number;
 }
 
 export interface TimelineItem {
   period: string;
   title: string;
   details?: string;
+  archivedAt?: string;
   verifiedBy?: Verifier;
+  pendingVerification?: {
+    requestedAt: string;
+    verifierUserId: number;
+    verifierName: string;
+  };
   /** URL-safe identifier used to route to the item's detail page. */
   slug?: string;
   /** Full markdown content for the item's detail page. */

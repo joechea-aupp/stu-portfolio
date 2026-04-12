@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { AdministrationGender, AdministrationProfile, AdministrationTitle } from "@/types/student";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { AdministrationUserManager } from "@/components/onboard/AdministrationUserManager";
+import { AchievementVerificationManager } from "@/components/onboard/AchievementVerificationManager";
 import { OnboardProfileSkeleton } from "@/components/onboard/OnboardProfileSkeleton";
 
 interface DraftResponse {
@@ -33,7 +34,7 @@ interface EditState {
   profilePicUrl: string;
 }
 
-type AdministrationTab = "profile" | "users" | "rbac";
+type AdministrationTab = "profile" | "users" | "rbac" | "achievements";
 
 const TITLES: Array<{ value: AdministrationTitle; label: string }> = [
   { value: "MR", label: "Mr." },
@@ -56,6 +57,7 @@ function normalizeGender(gender: string): AdministrationGender | "" {
 
 export default function AdministrationOnboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [state, setState] = useState<EditState | null>(null);
@@ -178,6 +180,15 @@ export default function AdministrationOnboardPage() {
     userPermissions.includes("roles.create") ||
     userPermissions.includes("roles.update") ||
     userPermissions.includes("roles.assign");
+  const canAccessAchievementTab = userPermissions.includes("achievements.verify");
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+
+    if (requestedTab === "achievements" && canAccessAchievementTab) {
+      setActiveTab("achievements");
+    }
+  }, [canAccessAchievementTab, searchParams]);
 
   useEffect(() => {
     if (activeTab === "users" && !canAccessUsersTab) {
@@ -187,8 +198,13 @@ export default function AdministrationOnboardPage() {
 
     if (activeTab === "rbac" && !canAccessRbacTab) {
       setActiveTab("profile");
+      return;
     }
-  }, [activeTab, canAccessRbacTab, canAccessUsersTab]);
+
+    if (activeTab === "achievements" && !canAccessAchievementTab) {
+      setActiveTab("profile");
+    }
+  }, [activeTab, canAccessAchievementTab, canAccessRbacTab, canAccessUsersTab]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -360,6 +376,20 @@ export default function AdministrationOnboardPage() {
               aria-pressed={activeTab === "rbac"}
             >
               RBAC
+            </button>
+          ) : null}
+          {canAccessAchievementTab ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab("achievements")}
+              className={`min-w-24 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+                activeTab === "achievements"
+                  ? "bg-[var(--color-accent)] text-white"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              }`}
+              aria-pressed={activeTab === "achievements"}
+            >
+              Achievements
             </button>
           ) : null}
         </div>
@@ -562,8 +592,10 @@ export default function AdministrationOnboardPage() {
         </>
       ) : activeTab === "users" ? (
         <AdministrationUserManager className="mt-6" tab="users" />
-      ) : (
+      ) : activeTab === "rbac" ? (
         <AdministrationUserManager className="mt-6" tab="rbac" />
+      ) : (
+        <AchievementVerificationManager className="mt-6" />
       )}
     </PageLayout>
   );
