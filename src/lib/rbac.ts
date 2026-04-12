@@ -2,6 +2,10 @@ import { getPrismaClient } from "@/lib/prisma";
 
 export const RBAC_PERMISSION = {
   USERS_MANAGE: "users.manage",
+  USERS_ACCESS: "users.access",
+  USERS_EDIT: "users.edit",
+  USERS_TOGGLE_ACTIVE: "users.toggle-active",
+  USERS_RESET_PASSWORD: "users.reset-password",
   ROLES_CREATE: "roles.create",
   ROLES_UPDATE: "roles.update",
   ROLES_ASSIGN: "roles.assign",

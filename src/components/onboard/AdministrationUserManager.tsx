@@ -94,9 +94,14 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const canManageUsers = currentUserPermissions.includes("users.manage");
+  const canAccessUsers = currentUserPermissions.includes("users.access");
+  const canEditUsers = currentUserPermissions.includes("users.edit");
+  const canToggleUsers = currentUserPermissions.includes("users.toggle-active");
+  const canResetPasswords = currentUserPermissions.includes("users.reset-password");
   const canCreateRoles = currentUserPermissions.includes("roles.create");
   const canUpdateRoles = currentUserPermissions.includes("roles.update");
+  const canAssignRoles = currentUserPermissions.includes("roles.assign");
+  const canAccessRbac = canCreateRoles || canUpdateRoles || canAssignRoles;
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const sortedUsers = useMemo(
@@ -151,7 +156,9 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
     setFeedback(null);
 
     try {
-      const response = await fetch("/api/administration/users", {
+      const endpoint = tab === "users" ? "/api/administration/users" : "/api/administration/roles";
+
+      const response = await fetch(endpoint, {
         method: "GET",
         cache: "no-store",
       });
@@ -181,7 +188,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tab]);
 
   useEffect(() => {
     void loadUsers();
@@ -487,6 +494,9 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
         </div>
 
         {tab === "rbac" ? (
+          !canAccessRbac ? (
+            <p className="mt-4 text-sm text-[var(--color-text-muted)]">You do not have permission to access RBAC.</p>
+          ) : (
           <div className="mt-4 grid gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
             <h3 className="font-heading text-sm uppercase tracking-[0.08em] text-[var(--color-text)]">Roles</h3>
 
@@ -569,6 +579,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
               </p>
             ) : null}
           </div>
+          )
         ) : null}
 
         {tab === "users" ? (
@@ -598,7 +609,9 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
           </p>
         ) : null}
 
-        {tab === "users" ? (loading ? (
+        {tab === "users" ? (!canAccessUsers ? (
+          <p className="mt-4 text-sm text-[var(--color-text-muted)]">You do not have permission to access users.</p>
+        ) : loading ? (
           <UserTableSkeleton />
         ) : sortedUsers.length === 0 ? (
           <p className="mt-4 text-sm text-[var(--color-text-muted)]">No users found.</p>
@@ -678,7 +691,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              disabled={!canManageUsers || isBusy || busyUserId !== null || resettingUserId !== null}
+                              disabled={!canEditUsers || isBusy || busyUserId !== null || resettingUserId !== null}
                               onClick={() => startEdit(user)}
                               className="border border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:opacity-50"
                             >
@@ -686,7 +699,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                             </button>
                             <button
                               type="button"
-                              disabled={!canManageUsers || isBusy || (user.isActive && user.id === currentUserId)}
+                              disabled={!canToggleUsers || isBusy || (user.isActive && user.id === currentUserId)}
                               onClick={() =>
                                 void runUserAction({
                                   userId: user.id,
@@ -699,7 +712,7 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                             </button>
                             <button
                               type="button"
-                              disabled={!canManageUsers || isBusy || busyUserId !== null || editingUserId !== null}
+                              disabled={!canResetPasswords || isBusy || busyUserId !== null || editingUserId !== null}
                               onClick={() => startResetPassword(user.id)}
                               className="border border-[var(--color-accent)] px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white disabled:opacity-50"
                             >
@@ -738,6 +751,18 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
                   Next →
                 </button>
               </div>
+            ) : null}
+
+            {!canAccessUsers ? (
+              <p className="mt-3 text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                Your account cannot access the users table.
+              </p>
+            ) : null}
+
+            {canAccessUsers && (!canEditUsers || !canToggleUsers || !canResetPasswords) ? (
+              <p className="mt-3 text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                Some user actions are hidden or disabled based on your permissions.
+              </p>
             ) : null}
           </>
         )) : null}

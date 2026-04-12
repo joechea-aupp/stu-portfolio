@@ -159,8 +159,10 @@ export async function GET() {
     return auth.response;
   }
 
-  if (!hasPermission(auth.permissionKeys, RBAC_PERMISSION.USERS_MANAGE)) {
-    return Response.json({ error: "You do not have permission to manage users." }, { status: 403 });
+  const canAccessUsers = hasPermission(auth.permissionKeys, RBAC_PERMISSION.USERS_ACCESS);
+
+  if (!canAccessUsers) {
+    return Response.json({ error: "You do not have permission to access users." }, { status: 403 });
   }
 
   const prisma = getPrismaClient();
@@ -284,7 +286,9 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "User not found." }, { status: 404 });
   }
 
-  const canManageUsers = hasPermission(auth.permissionKeys, RBAC_PERMISSION.USERS_MANAGE);
+  const canEditUsers = hasPermission(auth.permissionKeys, RBAC_PERMISSION.USERS_EDIT);
+  const canToggleUserActive = hasPermission(auth.permissionKeys, RBAC_PERMISSION.USERS_TOGGLE_ACTIVE);
+  const canResetUserPassword = hasPermission(auth.permissionKeys, RBAC_PERMISSION.USERS_RESET_PASSWORD);
   const canAssignRoles = hasPermission(auth.permissionKeys, RBAC_PERMISSION.ROLES_ASSIGN);
 
   if (action === "assignRole") {
@@ -333,11 +337,11 @@ export async function PATCH(request: Request) {
     return Response.json({ updated });
   }
 
-  if (!canManageUsers) {
-    return Response.json({ error: "You do not have permission to manage users." }, { status: 403 });
-  }
-
   if (action === "disable") {
+    if (!canToggleUserActive) {
+      return Response.json({ error: "You do not have permission to disable users." }, { status: 403 });
+    }
+
     if (target.id === auth.userId) {
       return Response.json({ error: "You cannot disable your own account." }, { status: 400 });
     }
@@ -354,6 +358,10 @@ export async function PATCH(request: Request) {
   }
 
   if (action === "enable") {
+    if (!canToggleUserActive) {
+      return Response.json({ error: "You do not have permission to enable users." }, { status: 403 });
+    }
+
     await prisma.users.update({
       where: { id: target.id },
       data: {
@@ -366,6 +374,10 @@ export async function PATCH(request: Request) {
   }
 
   if (action === "resetPassword") {
+    if (!canResetUserPassword) {
+      return Response.json({ error: "You do not have permission to reset passwords." }, { status: 403 });
+    }
+
     const newPassword = typeof payload.newPassword === "string" ? payload.newPassword : "";
     if (newPassword.length < 8) {
       return Response.json({ error: "Password must be at least 8 characters." }, { status: 400 });
@@ -380,6 +392,10 @@ export async function PATCH(request: Request) {
 
     const updated = await buildUserSummary(target.id);
     return Response.json({ updated });
+  }
+
+  if (!canEditUsers) {
+    return Response.json({ error: "You do not have permission to edit users." }, { status: 403 });
   }
 
   const trimmedName = typeof payload.name === "string" ? payload.name.trim() : "";

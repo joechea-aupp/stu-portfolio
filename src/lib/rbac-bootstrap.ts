@@ -22,6 +22,10 @@ async function runBootstrap() {
     SELECT seeded.key_name, seeded.label_name, seeded.description_name, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3)
     FROM (
       SELECT 'users.manage' AS key_name, 'Manage Users' AS label_name, 'Enable, disable, edit, and reset user accounts.' AS description_name
+      UNION ALL SELECT 'users.access', 'Access Users Table', 'View and access the administration users table.'
+      UNION ALL SELECT 'users.edit', 'Edit Users', 'Edit user profile fields including name, email, and account type.'
+      UNION ALL SELECT 'users.toggle-active', 'Enable/Disable Users', 'Enable or disable user accounts.'
+      UNION ALL SELECT 'users.reset-password', 'Reset User Passwords', 'Reset passwords for user accounts.'
       UNION ALL SELECT 'roles.create', 'Create Roles', 'Create new administration roles.'
       UNION ALL SELECT 'roles.update', 'Update Roles', 'Attach or detach permissions from roles.'
       UNION ALL SELECT 'roles.assign', 'Assign Roles', 'Assign roles to users.'
@@ -53,23 +57,50 @@ async function runBootstrap() {
     INSERT IGNORE INTO role_permissions (role_id, permission_id)
     SELECT r.id, p.id
     FROM roles r
-    JOIN permissions p ON p.\`key\` IN ('users.manage', 'roles.create', 'roles.update', 'roles.assign')
+    JOIN permissions p ON p.\`key\` IN (
+      'users.manage',
+      'users.access',
+      'users.edit',
+      'users.toggle-active',
+      'users.reset-password',
+      'roles.create',
+      'roles.update',
+      'roles.assign'
+    )
     WHERE r.name = 'ADMIN_SUPER'
   `;
 
   await prisma.$executeRaw`
-    INSERT IGNORE INTO role_permissions (role_id, permission_id)
-    SELECT r.id, p.id
-    FROM roles r
-    JOIN permissions p ON p.\`key\` IN ('users.manage', 'roles.assign')
+    DELETE rp
+    FROM role_permissions rp
+    JOIN roles r ON r.id = rp.role_id
+    JOIN permissions p ON p.id = rp.permission_id
     WHERE r.name = 'ADMIN_MANAGER'
+      AND p.\`key\` NOT IN ('users.access', 'roles.assign')
   `;
 
   await prisma.$executeRaw`
     INSERT IGNORE INTO role_permissions (role_id, permission_id)
     SELECT r.id, p.id
     FROM roles r
-    JOIN permissions p ON p.\`key\` IN ('users.manage')
+    JOIN permissions p ON p.\`key\` IN ('users.access', 'roles.assign')
+    WHERE r.name = 'ADMIN_MANAGER'
+  `;
+
+  await prisma.$executeRaw`
+    DELETE rp
+    FROM role_permissions rp
+    JOIN roles r ON r.id = rp.role_id
+    JOIN permissions p ON p.id = rp.permission_id
+    WHERE r.name = 'ADMIN_STAFF'
+      AND p.\`key\` <> 'users.access'
+  `;
+
+  await prisma.$executeRaw`
+    INSERT IGNORE INTO role_permissions (role_id, permission_id)
+    SELECT r.id, p.id
+    FROM roles r
+    JOIN permissions p ON p.\`key\` IN ('users.access')
     WHERE r.name = 'ADMIN_STAFF'
   `;
 

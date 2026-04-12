@@ -91,7 +91,6 @@ export async function GET() {
   }
 
   const canViewRoles =
-    hasPermission(auth.permissionKeys, RBAC_PERMISSION.USERS_MANAGE) ||
     hasPermission(auth.permissionKeys, RBAC_PERMISSION.ROLES_CREATE) ||
     hasPermission(auth.permissionKeys, RBAC_PERMISSION.ROLES_UPDATE) ||
     hasPermission(auth.permissionKeys, RBAC_PERMISSION.ROLES_ASSIGN);
@@ -149,13 +148,24 @@ export async function POST(request: Request) {
 
   const prisma = getPrismaClient();
 
+  const existingRoleRows = await prisma.$queryRaw<Array<{ id: number }>>`
+    SELECT id
+    FROM roles
+    WHERE name = ${normalized}
+    LIMIT 1
+  `;
+
+  if (existingRoleRows.length > 0) {
+    return Response.json({ error: "Role already exists." }, { status: 409 });
+  }
+
   try {
     await prisma.$executeRaw`
-      INSERT INTO roles (name, description, is_system)
-      VALUES (${normalized}, ${description || null}, false)
+      INSERT INTO roles (name, description, is_system, createdAt, updatedAt)
+      VALUES (${normalized}, ${description || null}, false, NOW(3), NOW(3))
     `;
   } catch {
-    return Response.json({ error: "Role already exists or could not be created." }, { status: 409 });
+    return Response.json({ error: "Role could not be created." }, { status: 500 });
   }
 
   const roles = await getAllRolesWithPermissions();
