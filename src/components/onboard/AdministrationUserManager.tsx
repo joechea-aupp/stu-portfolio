@@ -525,7 +525,9 @@ export function AdministrationUserManager({ className, tab }: AdministrationUser
               </button>
             </div>
 
-            {roles.length === 0 ? (
+            {loading ? (
+              <RbacTableSkeleton />
+            ) : roles.length === 0 ? (
               <p className="text-sm text-[var(--color-text-muted)]">No roles found.</p>
             ) : (
               <div className="overflow-x-auto border border-[var(--color-border)] bg-white">
@@ -1091,6 +1093,37 @@ function UserTableSkeleton() {
               <td className="px-3 py-3"><div className="h-3 w-20 animate-pulse bg-[var(--color-border)]" /></td>
               <td className="px-3 py-3"><div className="h-3 w-20 animate-pulse bg-[var(--color-border)]" /></td>
               <td className="px-3 py-3"><div className="h-3 w-36 animate-pulse bg-[var(--color-border)]" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RbacTableSkeleton() {
+  const rows = Array.from({ length: 5 });
+
+  return (
+    <div className="overflow-x-auto border border-[var(--color-border)] bg-white">
+      <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+        <thead className="bg-[var(--color-bg)]">
+          <tr>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Role</th>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Description</th>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Type</th>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Permissions</th>
+            <th className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((_, index) => (
+            <tr key={index} className="border-t border-[var(--color-border)] align-top">
+              <td className="px-3 py-3"><div className="h-3 w-28 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-40 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-24 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-20 animate-pulse bg-[var(--color-border)]" /></td>
+              <td className="px-3 py-3"><div className="h-3 w-14 animate-pulse bg-[var(--color-border)]" /></td>
             </tr>
           ))}
         </tbody>
