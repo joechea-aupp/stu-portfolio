@@ -73,6 +73,7 @@ export function DirectoryApp() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [students, setStudents] = useState<Student[]>([]);
+  const [majorOptions, setMajorOptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [kudoedStudentIds, setKudoedStudentIds] = useState<Set<string>>(new Set());
 
@@ -145,9 +146,47 @@ export function DirectoryApp() {
     })();
   }, []);
 
-  const majorOptions = useMemo(() => {
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/majors", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as { majors?: unknown };
+        if (!Array.isArray(data.majors)) {
+          return;
+        }
+
+        const nextMajors = data.majors
+          .filter((major): major is string => typeof major === "string")
+          .map((major) => major.trim())
+          .filter((major) => major.length > 0);
+
+        setMajorOptions(Array.from(new Set(nextMajors)).sort());
+      } catch {
+        // Keep fallback options when request fails.
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
+  const fallbackMajorOptions = useMemo(() => {
     return Array.from(new Set(students.map((student) => student.major))).sort();
   }, [students]);
+
+  const resolvedMajorOptions = majorOptions.length > 0 ? majorOptions : fallbackMajorOptions;
 
   const updateFilters = (updater: (current: FilterState) => FilterState) => {
     setFilters(updater);
@@ -282,7 +321,7 @@ export function DirectoryApp() {
     >
       <FilterSidebar
         filters={filters}
-        majorOptions={majorOptions}
+        majorOptions={resolvedMajorOptions}
         onToggleMajor={toggleMajor}
         onAvailabilityChange={(availableOnly) =>
           updateFilters((current) => ({ ...current, availableOnly }))
@@ -377,7 +416,7 @@ export function DirectoryApp() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         filters={filters}
-        majorOptions={majorOptions}
+        majorOptions={resolvedMajorOptions}
         onToggleMajor={toggleMajor}
         onAvailabilityChange={(availableOnly) =>
           updateFilters((current) => ({ ...current, availableOnly }))
