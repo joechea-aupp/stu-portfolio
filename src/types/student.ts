@@ -17,6 +17,7 @@ export interface TimelineItem {
   period: string;
   title: string;
   details?: string;
+  archivedAt?: string;
   verifiedBy?: Verifier;
   pendingVerification?: {
     requestedAt: string;

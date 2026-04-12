@@ -29,6 +29,11 @@ function asTimelineItems(value: unknown): TimelineItem[] {
     const candidate = item as Record<string, unknown>;
     const period = typeof candidate.period === "string" ? candidate.period : "";
     const title = typeof candidate.title === "string" ? candidate.title : "";
+    const archivedAt = typeof candidate.archivedAt === "string" ? candidate.archivedAt : undefined;
+
+    if (archivedAt) {
+      continue;
+    }
 
     if (!period || !title) {
       continue;

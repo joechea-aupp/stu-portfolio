@@ -268,6 +268,12 @@ export default function OnboardProfilePage() {
     );
   }
   const { draft, skills, projects, achievements, summary, socialLinks } = state;
+  const visibleAchievements = achievements
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => !entry.archivedAt);
+  const archivedAchievements = achievements
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => Boolean(entry.archivedAt));
   const activeSocialLinkOptions = getActiveSocialLinkOptions(socialLinks);
   const availableSocialLinkOptions = getAvailableSocialLinkOptions(socialLinks);
 
@@ -317,6 +323,40 @@ export default function OnboardProfilePage() {
         .map((index) => (index > i ? index - 1 : index));
       return next;
     });
+  }
+
+  function archiveAchievement(i: number) {
+    setState((s) =>
+      s && {
+        ...s,
+        achievements: s.achievements.map((achievement, idx) =>
+          idx === i
+            ? {
+                ...achievement,
+                archivedAt: achievement.archivedAt ?? new Date().toISOString(),
+              }
+            : achievement,
+        ),
+      },
+    );
+    setExpandedAchievementIndexes((current) => current.filter((index) => index !== i));
+  }
+
+  function unarchiveAchievement(i: number) {
+    setState((s) =>
+      s && {
+        ...s,
+        achievements: s.achievements.map((achievement, idx) =>
+          idx === i
+            ? {
+                ...achievement,
+                archivedAt: undefined,
+              }
+            : achievement,
+        ),
+      },
+    );
+    setExpandedAchievementIndexes((current) => (current.includes(i) ? current : [...current, i]));
   }
 
   function expandAchievement(i: number) {
@@ -447,7 +487,7 @@ export default function OnboardProfilePage() {
       ...draft,
       skills,
       projects: projects.filter((p) => p.title.trim()),
-      achievements: achievements.filter((a) => a.title.trim()),
+      achievements: achievements.filter((a) => (a.archivedAt ? true : a.title.trim().length > 0)),
       summary,
       socialLinks,
     };
@@ -727,36 +767,74 @@ export default function OnboardProfilePage() {
           {/* ── Achievements ── */}
           <Section title="Achievements">
             <div className="flex flex-col gap-4">
-              {achievements.map((a, i) => (
-                <AchievementEntryRow
-                  key={i}
-                  entry={a}
-                  index={i}
-                  total={achievements.length}
-                  expanded={expandedAchievementIndexes.includes(i)}
-                  onChange={(field, val) => updateAchievement(i, field, val)}
-                  onRemove={() => removeAchievement(i)}
-                  onExpand={() => expandAchievement(i)}
-                  onCollapse={() => collapseAchievement(i)}
-                  verifierSearch={verifierSearchByIndex[i] ?? ""}
-                  onVerifierSearchChange={(value) =>
-                    setVerifierSearchByIndex((current) => ({
-                      ...current,
-                      [i]: value,
-                    }))
-                  }
-                  selectedVerifierId={selectedVerifierByIndex[i] ?? ""}
-                  onSelectedVerifierIdChange={(value) =>
-                    setSelectedVerifierByIndex((current) => ({
-                      ...current,
-                      [i]: value,
-                    }))
-                  }
-                  verifiers={verifiers}
-                  requesting={requestingAchievementIndex === i}
-                  onRequestVerification={() => void requestAchievementVerification(i)}
-                />
+              {visibleAchievements.map(({ entry, index }) => (
+                  <AchievementEntryRow
+                    key={index}
+                    entry={entry}
+                    index={index}
+                    total={achievements.length}
+                    expanded={expandedAchievementIndexes.includes(index)}
+                    onChange={(field, val) => updateAchievement(index, field, val)}
+                    onRemove={() => removeAchievement(index)}
+                    onArchive={() => archiveAchievement(index)}
+                    onExpand={() => expandAchievement(index)}
+                    onCollapse={() => collapseAchievement(index)}
+                    verifierSearch={verifierSearchByIndex[index] ?? ""}
+                    onVerifierSearchChange={(value) =>
+                      setVerifierSearchByIndex((current) => ({
+                        ...current,
+                        [index]: value,
+                      }))
+                    }
+                    selectedVerifierId={selectedVerifierByIndex[index] ?? ""}
+                    onSelectedVerifierIdChange={(value) =>
+                      setSelectedVerifierByIndex((current) => ({
+                        ...current,
+                        [index]: value,
+                      }))
+                    }
+                    verifiers={verifiers}
+                    requesting={requestingAchievementIndex === index}
+                    onRequestVerification={() => void requestAchievementVerification(index)}
+                  />
               ))}
+              {visibleAchievements.length === 0 ? (
+                <p className="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
+                  No active achievements. Add a new one below.
+                </p>
+              ) : null}
+
+              {archivedAchievements.length > 0 ? (
+                <div className="mt-2 border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                    Archived achievements
+                  </p>
+                  <div className="mt-2 flex flex-col gap-2">
+                    {archivedAchievements.map(({ entry, index }) => (
+                      <div
+                        key={`archived-${index}`}
+                        className="flex items-center justify-between gap-3 border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-sm text-[var(--color-text)]">
+                            {entry.title.trim().length > 0 ? entry.title : "Untitled achievement"}
+                          </p>
+                          <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                            {entry.period.trim() || "No period added"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => unarchiveAchievement(index)}
+                          className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-2.5 py-1 text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                        >
+                          Unarchive
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
             <AddItemButton onClick={addAchievement} label="Add achievement" />
           </Section>
@@ -866,6 +944,7 @@ interface AchievementEntryRowProps extends TimelineEntryRowProps {
   verifierSearch: string;
   selectedVerifierId: string;
   requesting: boolean;
+  onArchive: () => void;
   onExpand: () => void;
   onCollapse: () => void;
   onVerifierSearchChange: (value: string) => void;
@@ -880,6 +959,7 @@ function AchievementEntryRow({
   expanded,
   onChange,
   onRemove,
+  onArchive,
   onExpand,
   onCollapse,
   verifiers,
@@ -991,22 +1071,13 @@ function AchievementEntryRow({
         </span>
         <div className="flex items-center gap-3">
           {!expanded ? (
-            <>
-              <button
-                type="button"
-                onClick={onExpand}
-                className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
-              >
-                Details
-              </button>
-              <button
-                type="button"
-                onClick={onExpand}
-                className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
-              >
-                Edit
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={onExpand}
+              className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+            >
+              Edit
+            </button>
           ) : (
             <button
               type="button"
@@ -1016,7 +1087,15 @@ function AchievementEntryRow({
               Minimize
             </button>
           )}
-          {total > 1 && (
+          {entry.verifiedBy ? (
+            <button
+              type="button"
+              onClick={onArchive}
+              className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+            >
+              Archive
+            </button>
+          ) : (
             <button
               type="button"
               onClick={onRemove}
