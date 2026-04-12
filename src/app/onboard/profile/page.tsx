@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -93,6 +93,7 @@ function getActiveSocialLinkOptions(socialLinks: SocialLinks) {
 
 export default function OnboardProfilePage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<EditState | null>(null);
   const [majorOptions, setMajorOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +101,7 @@ export default function OnboardProfilePage() {
   const [skillInput, setSkillInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [pendingSocialLink, setPendingSocialLink] = useState<SocialLinkKey | "">("");
   const [verifiers, setVerifiers] = useState<VerifierOption[]>([]);
   const [verifierSearchByIndex, setVerifierSearchByIndex] = useState<Record<number, string>>({});
@@ -524,6 +526,76 @@ export default function OnboardProfilePage() {
     });
   }
 
+  async function handleProfilePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const previousImageUrl = draft.imageUrl;
+    const localPreviewUrl = URL.createObjectURL(file);
+
+    setState((current) =>
+      current
+        ? {
+            ...current,
+            draft: {
+              ...current.draft,
+              imageUrl: localPreviewUrl,
+            },
+          }
+        : current,
+    );
+    setPhotoUploading(true);
+    setSaveFeedback(null);
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+
+      const response = await fetch("/api/upload/avatar", {
+        method: "POST",
+        body: form,
+      });
+
+      const payload = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Upload failed.");
+      }
+
+      setState((current) =>
+        current
+          ? {
+              ...current,
+              draft: {
+                ...current.draft,
+                imageUrl: payload.url ?? previousImageUrl,
+              },
+            }
+          : current,
+      );
+      setSaveFeedback("Photo uploaded. Click Save profile to persist changes.");
+    } catch (error) {
+      setState((current) =>
+        current
+          ? {
+              ...current,
+              draft: {
+                ...current.draft,
+                imageUrl: previousImageUrl,
+              },
+            }
+          : current,
+      );
+      setSaveFeedback(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      URL.revokeObjectURL(localPreviewUrl);
+      e.target.value = "";
+      setPhotoUploading(false);
+    }
+  }
+
   async function persistProfile(
     nextAchievements: TimelineItem[],
     successMessage: string,
@@ -618,7 +690,13 @@ export default function OnboardProfilePage() {
 
         {/* Identity summary */}
         <div className="mb-8 mt-6 flex items-center gap-4">
-          <div className="relative h-16 w-16 flex-shrink-0 border-[2px] border-[var(--color-brand)] overflow-hidden bg-[var(--color-bg)]">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={photoUploading}
+            className="relative h-16 w-16 flex-shrink-0 overflow-hidden border-[2px] border-[var(--color-brand)] bg-[var(--color-bg)] transition hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Update profile photo"
+          >
             <Image
               src={resolveStudentImageUrl(draft.imageUrl)}
               alt={
@@ -629,7 +707,10 @@ export default function OnboardProfilePage() {
               fill
               className="object-cover"
             />
-          </div>
+            <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-center text-[8px] uppercase tracking-[0.12em] text-white">
+              {photoUploading ? "Uploading..." : "Change"}
+            </span>
+          </button>
           <div>
             <p className="font-heading text-xl uppercase text-[var(--color-text)] leading-tight">{draft.name}</p>
             <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
@@ -637,8 +718,17 @@ export default function OnboardProfilePage() {
               {draft.graduationYear ? ` · ${draft.graduationYear}` : ""}
               {` · ${draft.year}`}
             </p>
+            <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">Click photo to update</p>
           </div>
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          className="sr-only"
+          onChange={handleProfilePhotoChange}
+        />
 
         <form onSubmit={handleSave} className="flex flex-col gap-10">
 

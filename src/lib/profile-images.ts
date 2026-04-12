@@ -1,8 +1,8 @@
 export const DEFAULT_STUDENT_IMAGE_URL =
-  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=640&q=80";
+  "/images/default-profile-avatar.svg";
 
 export const DEFAULT_ADMINISTRATION_IMAGE_URL =
-  "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=640&q=80";
+  "/images/default-profile-avatar.svg";
 
 export function resolveStudentImageUrl(imageUrl: string | null | undefined): string {
   if (typeof imageUrl !== "string") {
