@@ -1,33 +1,16 @@
 import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth-session";
 import { getPrismaClient } from "@/lib/prisma";
+import { ensureRbacBootstrap } from "@/lib/rbac-bootstrap";
+import { getUserRbacSnapshot } from "@/lib/rbac";
 
 function unauthorizedResponse() {
   return Response.json({ authenticated: false }, { status: 401, headers: { "Cache-Control": "no-store" } });
 }
 
-function coerceBoolean(value: unknown): boolean {
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  if (typeof value === "number") {
-    return value !== 0;
-  }
-
-  if (typeof value === "bigint") {
-    return value !== BigInt(0);
-  }
-
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    return normalized === "1" || normalized === "true";
-  }
-
-  return false;
-}
-
 export async function GET() {
+  await ensureRbacBootstrap();
+
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
@@ -66,13 +49,8 @@ export async function GET() {
     return unauthorizedResponse();
   }
 
-  const activeRows = await prisma.$queryRaw<Array<{ is_active: unknown }>>`
-    SELECT is_active
-    FROM users
-    WHERE id = ${user.id}
-    LIMIT 1
-  `;
-  const isActive = activeRows.length > 0 ? coerceBoolean(activeRows[0].is_active) : false;
+  const userRbac = await getUserRbacSnapshot(user.id);
+  const isActive = userRbac?.isActive ?? false;
 
   if (!isActive) {
     cookieStore.delete(SESSION_COOKIE_NAME);
@@ -90,6 +68,8 @@ export async function GET() {
         name: user.name,
         email: user.email,
         userType: user.user_type,
+        roles: userRbac?.roles ?? [],
+        permissions: userRbac?.permissionKeys ?? [],
         hasProfile,
       },
     },

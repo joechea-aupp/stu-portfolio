@@ -15,6 +15,13 @@ interface DraftResponse {
   error?: string;
 }
 
+interface SessionResponse {
+  authenticated?: boolean;
+  user?: {
+    permissions?: string[];
+  };
+}
+
 interface EditState {
   name: string;
   title: AdministrationTitle;
@@ -26,7 +33,7 @@ interface EditState {
   profilePicUrl: string;
 }
 
-type AdministrationTab = "profile" | "users";
+type AdministrationTab = "profile" | "users" | "rbac";
 
 const TITLES: Array<{ value: AdministrationTitle; label: string }> = [
   { value: "MR", label: "Mr." },
@@ -59,6 +66,7 @@ export default function AdministrationOnboardPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AdministrationTab>("profile");
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -132,6 +140,55 @@ export default function AdministrationOnboardPage() {
       active = false;
     };
   }, [router]);
+
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/session", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!active || !response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as SessionResponse;
+        setUserPermissions(payload.user?.permissions ?? []);
+      } catch {
+        if (active) {
+          setUserPermissions([]);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const canAccessUsersTab =
+    userPermissions.includes("users.access") ||
+    userPermissions.includes("users.edit") ||
+    userPermissions.includes("users.toggle-active") ||
+    userPermissions.includes("users.reset-password");
+  const canAccessRbacTab =
+    userPermissions.includes("roles.create") ||
+    userPermissions.includes("roles.update") ||
+    userPermissions.includes("roles.assign");
+
+  useEffect(() => {
+    if (activeTab === "users" && !canAccessUsersTab) {
+      setActiveTab("profile");
+      return;
+    }
+
+    if (activeTab === "rbac" && !canAccessRbacTab) {
+      setActiveTab("profile");
+    }
+  }, [activeTab, canAccessRbacTab, canAccessUsersTab]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -254,7 +311,7 @@ export default function AdministrationOnboardPage() {
     <PageLayout
       width="md"
       className="py-10"
-      containerClassName={activeTab === "users" ? "max-w-6xl" : "max-w-2xl"}
+      containerClassName={activeTab === "profile" ? "max-w-2xl" : "max-w-6xl"}
     >
       <Link
         href="/"
@@ -277,18 +334,34 @@ export default function AdministrationOnboardPage() {
           >
             Profile
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("users")}
-            className={`min-w-24 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
-              activeTab === "users"
-                ? "bg-[var(--color-accent)] text-white"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-            }`}
-            aria-pressed={activeTab === "users"}
-          >
-            Users
-          </button>
+          {canAccessUsersTab ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab("users")}
+              className={`min-w-24 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+                activeTab === "users"
+                  ? "bg-[var(--color-accent)] text-white"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              }`}
+              aria-pressed={activeTab === "users"}
+            >
+              Users
+            </button>
+          ) : null}
+          {canAccessRbacTab ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab("rbac")}
+              className={`min-w-24 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+                activeTab === "rbac"
+                  ? "bg-[var(--color-accent)] text-white"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              }`}
+              aria-pressed={activeTab === "rbac"}
+            >
+              RBAC
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -487,8 +560,10 @@ export default function AdministrationOnboardPage() {
             </button>
           </form>
         </>
+      ) : activeTab === "users" ? (
+        <AdministrationUserManager className="mt-6" tab="users" />
       ) : (
-        <AdministrationUserManager className="mt-6" />
+        <AdministrationUserManager className="mt-6" tab="rbac" />
       )}
     </PageLayout>
   );

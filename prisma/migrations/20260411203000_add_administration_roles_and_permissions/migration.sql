@@ -1,0 +1,3 @@
+ALTER TABLE `users`
+  ADD COLUMN `administration_role` ENUM('ADMIN_SUPER', 'ADMIN_MANAGER', 'ADMIN_STAFF') NULL,
+  ADD COLUMN `can_assign_roles` BOOLEAN NOT NULL DEFAULT false;
