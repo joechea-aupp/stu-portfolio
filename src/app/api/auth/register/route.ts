@@ -9,6 +9,7 @@ interface RegisterPayload {
   email: string;
   password: string;
   userType: "STUDENT" | "ADMINISTRATION";
+  cfTurnstileToken: string;
 }
 
 function validate(body: unknown): { ok: true; data: RegisterPayload } | { ok: false; error: string } {
@@ -40,6 +41,11 @@ function validate(body: unknown): { ok: true; data: RegisterPayload } | { ok: fa
     return { ok: false, error: "userType must be STUDENT or ADMINISTRATION." };
   }
 
+  const cfToken = (data as Partial<RegisterPayload>).cfTurnstileToken?.trim();
+  if (!cfToken) {
+    return { ok: false, error: "Please complete the CAPTCHA." };
+  }
+
   return {
     ok: true,
     data: {
@@ -47,6 +53,7 @@ function validate(body: unknown): { ok: true; data: RegisterPayload } | { ok: fa
       email,
       password,
       userType: userType as "STUDENT" | "ADMINISTRATION",
+      cfTurnstileToken: cfToken,
     },
   };
 }
@@ -97,6 +104,24 @@ export async function POST(request: Request) {
   }
 
   const { name, email, password } = validation.data;
+
+  // Verify Turnstile token with Cloudflare
+  const turnstileRes = await fetch(
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        secret: process.env.TURNSTILE_SECRET_KEY,
+        response: validation.data.cfTurnstileToken,
+      }),
+    },
+  );
+  const turnstileData = (await turnstileRes.json()) as { success: boolean };
+  if (!turnstileData.success) {
+    return Response.json({ error: "CAPTCHA verification failed. Please try again." }, { status: 400 });
+  }
+
   const prisma = getPrismaClient();
 
   try {
