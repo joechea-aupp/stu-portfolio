@@ -326,37 +326,43 @@ export default function OnboardProfilePage() {
   }
 
   function archiveAchievement(i: number) {
+    const nextAchievements = achievements.map((achievement, idx) =>
+      idx === i
+        ? {
+            ...achievement,
+            archivedAt: achievement.archivedAt ?? new Date().toISOString(),
+          }
+        : achievement,
+    );
+
     setState((s) =>
       s && {
         ...s,
-        achievements: s.achievements.map((achievement, idx) =>
-          idx === i
-            ? {
-                ...achievement,
-                archivedAt: achievement.archivedAt ?? new Date().toISOString(),
-              }
-            : achievement,
-        ),
+        achievements: nextAchievements,
       },
     );
     setExpandedAchievementIndexes((current) => current.filter((index) => index !== i));
+    void persistProfile(nextAchievements, "Achievement archived.");
   }
 
   function unarchiveAchievement(i: number) {
+    const nextAchievements = achievements.map((achievement, idx) =>
+      idx === i
+        ? {
+            ...achievement,
+            archivedAt: undefined,
+          }
+        : achievement,
+    );
+
     setState((s) =>
       s && {
         ...s,
-        achievements: s.achievements.map((achievement, idx) =>
-          idx === i
-            ? {
-                ...achievement,
-                archivedAt: undefined,
-              }
-            : achievement,
-        ),
+        achievements: nextAchievements,
       },
     );
     setExpandedAchievementIndexes((current) => (current.includes(i) ? current : [...current, i]));
+    void persistProfile(nextAchievements, "Achievement unarchived.");
   }
 
   function expandAchievement(i: number) {
@@ -477,9 +483,7 @@ export default function OnboardProfilePage() {
     });
   }
 
-  // ── save ─────────────────────────────────────────────────
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
+  async function persistProfile(nextAchievements: TimelineItem[], successMessage: string, refreshAfterSave = false) {
     setSaving(true);
     setSaveFeedback(null);
 
@@ -487,7 +491,7 @@ export default function OnboardProfilePage() {
       ...draft,
       skills,
       projects: projects.filter((p) => p.title.trim()),
-      achievements: achievements.filter((a) => (a.archivedAt ? true : a.title.trim().length > 0)),
+      achievements: nextAchievements.filter((a) => (a.archivedAt ? true : a.title.trim().length > 0)),
       summary,
       socialLinks,
     };
@@ -517,13 +521,22 @@ export default function OnboardProfilePage() {
         return;
       }
 
-      setSaveFeedback("Profile updated successfully.");
-      router.refresh();
+      setSaveFeedback(successMessage);
+
+      if (refreshAfterSave) {
+        router.refresh();
+      }
     } catch {
       setSaveFeedback("Failed to save profile.");
     } finally {
       setSaving(false);
     }
+  }
+
+  // ── save ─────────────────────────────────────────────────
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    await persistProfile(achievements, "Profile updated successfully.", true);
   }
 
   return (
