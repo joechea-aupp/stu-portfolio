@@ -93,6 +93,7 @@ function getActiveSocialLinkOptions(socialLinks: SocialLinks) {
 export default function OnboardProfilePage() {
   const router = useRouter();
   const [state, setState] = useState<EditState | null>(null);
+  const [majorOptions, setMajorOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [skillInput, setSkillInput] = useState("");
@@ -135,6 +136,7 @@ export default function OnboardProfilePage() {
         const payload = (await response.json()) as {
           draft?: DraftProfile | null;
           user?: { name?: string };
+          majorOptions?: string[];
         };
         const fallbackDraft: DraftProfile = {
           name: payload.user?.name?.trim() || "Student",
@@ -150,6 +152,7 @@ export default function OnboardProfilePage() {
           socialLinks: {},
         };
         const draft = payload.draft ?? fallbackDraft;
+        setMajorOptions(Array.isArray(payload.majorOptions) ? payload.majorOptions : []);
 
         setState({
           draft,
@@ -162,6 +165,7 @@ export default function OnboardProfilePage() {
       } catch {
         if (controller.signal.aborted) return;
         setLoadError("Unable to load your profile draft.");
+        setMajorOptions([]);
         setState(null);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -269,6 +273,9 @@ export default function OnboardProfilePage() {
     );
   }
   const { draft, skills, projects, achievements, summary, socialLinks } = state;
+  const selectableMajorOptions = draft.major && !majorOptions.includes(draft.major)
+    ? [draft.major, ...majorOptions]
+    : majorOptions;
   const visibleAchievements = achievements
     .map((entry, index) => ({ entry, index }))
     .filter(({ entry }) => !entry.archivedAt);
@@ -616,14 +623,21 @@ export default function OnboardProfilePage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Major</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Computer Science"
+                <select
                   value={draft.major}
                   onChange={(e) => setState((s) => s && ({ ...s, draft: { ...s.draft, major: e.target.value } }))}
-                  className={inputCls}
+                  className="w-full cursor-pointer appearance-none border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 pr-8 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)]"
                   required
-                />
+                >
+                  <option value="" disabled>
+                    Select major
+                  </option>
+                  {selectableMajorOptions.map((major) => (
+                    <option key={major} value={major}>
+                      {major}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex flex-col gap-1">

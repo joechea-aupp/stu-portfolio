@@ -169,16 +169,39 @@ function toAcademicYear(value: string): AcademicYear {
 async function getDatabaseStudentById(id: string): Promise<Student | null> {
   try {
     const prisma = getPrismaClient();
-    const dbStudent = await prisma.student.findUnique({
+    const dbStudent = (await prisma.student.findUnique({
       where: { id },
       include: {
+        major: {
+          select: {
+            name: true,
+          },
+        },
         user: {
           select: {
             name: true,
           },
         },
       },
-    });
+    })) as {
+      id: string;
+      classification: string;
+      major: {
+        name: string;
+      } | null;
+      view_count: number;
+      kudo_count: number;
+      skills: unknown;
+      available_for_project: boolean;
+      projects: unknown;
+      achievements: unknown;
+      summary: string | null;
+      image_url: string | null;
+      social_links: unknown;
+      user: {
+        name: string;
+      };
+    } | null;
 
     if (!dbStudent) {
       return null;
@@ -244,7 +267,7 @@ async function getDatabaseStudentById(id: string): Promise<Student | null> {
       id: dbStudent.id,
       name: dbStudent.user.name,
       year: toAcademicYear(dbStudent.classification),
-      major: dbStudent.major,
+      major: dbStudent.major?.name ?? "Undeclared",
       viewCount: dbStudent.view_count,
       kudoCount: dbStudent.kudo_count,
       skills: asStringArray(dbStudent.skills),

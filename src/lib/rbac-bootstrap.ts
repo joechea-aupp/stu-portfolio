@@ -30,6 +30,10 @@ async function runBootstrap() {
       UNION ALL SELECT 'roles.update', 'Update Roles', 'Attach or detach permissions from roles.'
       UNION ALL SELECT 'roles.assign', 'Assign Roles', 'Assign roles to users.'
       UNION ALL SELECT 'achievements.verify', 'Verify Achievements', 'Review and approve or reject student achievement verification requests.'
+      UNION ALL SELECT 'majors.view', 'View Majors', 'View available majors and their status.'
+      UNION ALL SELECT 'majors.create', 'Create Majors', 'Create new predefined majors.'
+      UNION ALL SELECT 'majors.edit', 'Edit Majors', 'Update major names.'
+      UNION ALL SELECT 'majors.toggle-active', 'Enable/Disable Majors', 'Mark majors as active or inactive.'
     ) seeded
     WHERE NOT EXISTS (
       SELECT 1
@@ -67,7 +71,11 @@ async function runBootstrap() {
       'roles.create',
       'roles.update',
       'roles.assign',
-      'achievements.verify'
+      'achievements.verify',
+      'majors.view',
+      'majors.create',
+      'majors.edit',
+      'majors.toggle-active'
     )
     WHERE r.name = 'ADMIN_SUPER'
       AND NOT EXISTS (
@@ -81,7 +89,7 @@ async function runBootstrap() {
     INSERT IGNORE INTO role_permissions (role_id, permission_id)
     SELECT r.id, p.id
     FROM roles r
-    JOIN permissions p ON p.\`key\` IN ('users.access', 'roles.assign', 'achievements.verify')
+    JOIN permissions p ON p.\`key\` IN ('users.access', 'roles.assign', 'achievements.verify', 'majors.view', 'majors.toggle-active')
     WHERE r.name = 'ADMIN_MANAGER'
       AND NOT EXISTS (
         SELECT 1
@@ -94,7 +102,7 @@ async function runBootstrap() {
     INSERT IGNORE INTO role_permissions (role_id, permission_id)
     SELECT r.id, p.id
     FROM roles r
-    JOIN permissions p ON p.\`key\` IN ('users.access')
+    JOIN permissions p ON p.\`key\` IN ('users.access', 'majors.view')
     WHERE r.name = 'ADMIN_STAFF'
       AND NOT EXISTS (
         SELECT 1

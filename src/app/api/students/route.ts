@@ -94,8 +94,13 @@ function asSocialLinks(value: unknown): SocialLinks {
 export async function GET() {
   try {
     const prisma = getPrismaClient();
-    const students = await prisma.student.findMany({
+    const students = (await prisma.student.findMany({
       include: {
+        major: {
+          select: {
+            name: true,
+          },
+        },
         user: {
           select: {
             name: true,
@@ -105,13 +110,31 @@ export async function GET() {
       orderBy: {
         id: "desc",
       },
-    });
+    })) as Array<{
+      id: string;
+      classification: Classification;
+      view_count: number;
+      kudo_count: number;
+      skills: unknown;
+      available_for_project: boolean;
+      projects: unknown;
+      achievements: unknown;
+      summary: string | null;
+      image_url: string | null;
+      social_links: unknown;
+      user: {
+        name: string;
+      };
+      major: {
+        name: string;
+      } | null;
+    }>;
 
     const payload: Student[] = students.map((student) => ({
       id: student.id,
       name: student.user.name,
       year: toAcademicYear(student.classification),
-      major: student.major,
+      major: student.major?.name ?? "Undeclared",
       viewCount: student.view_count,
       kudoCount: student.kudo_count,
       skills: asStringArray(student.skills),
