@@ -827,16 +827,92 @@ function AchievementEntryRow({
   onSelectedVerifierIdChange,
   onRequestVerification,
 }: AchievementEntryRowProps) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const normalizedQuery = verifierSearch.trim().toLowerCase();
   const filteredVerifiers = normalizedQuery
     ? verifiers.filter((verifier) => verifier.name.toLowerCase().includes(normalizedQuery))
     : verifiers;
+  const activeOptionId =
+    dropdownOpen && highlightedIndex >= 0 && highlightedIndex < filteredVerifiers.length
+      ? `verifier-option-${index}-${filteredVerifiers[highlightedIndex].id}`
+      : undefined;
 
   const canRequestVerification =
     entry.title.trim().length > 0 &&
     entry.period.trim().length > 0 &&
     !entry.verifiedBy &&
     !entry.pendingVerification;
+
+  function handleSelectVerifier(verifier: VerifierOption) {
+    onSelectedVerifierIdChange(String(verifier.id));
+    onVerifierSearchChange(verifier.name);
+    setDropdownOpen(false);
+    setHighlightedIndex(-1);
+  }
+
+  function handleComboboxKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (!filteredVerifiers.length) {
+      if (event.key === "Escape") {
+        setDropdownOpen(false);
+      }
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setDropdownOpen(true);
+      setHighlightedIndex((current) => (current + 1) % filteredVerifiers.length);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setDropdownOpen(true);
+      setHighlightedIndex((current) => (current <= 0 ? filteredVerifiers.length - 1 : current - 1));
+      return;
+    }
+
+    if (event.key === "Enter") {
+      if (!dropdownOpen) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const selected =
+        highlightedIndex >= 0 && highlightedIndex < filteredVerifiers.length
+          ? filteredVerifiers[highlightedIndex]
+          : filteredVerifiers[0];
+
+      if (selected) {
+        handleSelectVerifier(selected);
+      }
+      return;
+    }
+
+    if (event.key === "Tab") {
+      if (!dropdownOpen) {
+        return;
+      }
+
+      const selected =
+        highlightedIndex >= 0 && highlightedIndex < filteredVerifiers.length
+          ? filteredVerifiers[highlightedIndex]
+          : filteredVerifiers[0];
+
+      if (selected) {
+        handleSelectVerifier(selected);
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setDropdownOpen(false);
+      setHighlightedIndex(-1);
+    }
+  }
 
   return (
     <div className="border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-4 flex flex-col gap-3">
@@ -900,25 +976,98 @@ function AchievementEntryRow({
           <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
             Request verification
           </p>
-          <input
-            type="search"
-            value={verifierSearch}
-            onChange={(event) => onVerifierSearchChange(event.target.value)}
-            placeholder="Search verifier name"
-            className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-          />
-          <select
-            value={selectedVerifierId}
-            onChange={(event) => onSelectedVerifierIdChange(event.target.value)}
-            className="w-full cursor-pointer border border-[var(--color-border)] bg-white px-2.5 py-2 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-          >
-            <option value="">Select verifier</option>
-            {filteredVerifiers.map((verifier) => (
-              <option key={verifier.id} value={String(verifier.id)}>
-                {verifier.name} - {verifier.role}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <input
+              type="text"
+              value={verifierSearch}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={dropdownOpen}
+              aria-controls={`verifier-listbox-${index}`}
+              aria-activedescendant={activeOptionId}
+              autoComplete="off"
+              onFocus={() => {
+                setDropdownOpen(true);
+                const selectedIndex = filteredVerifiers.findIndex(
+                  (verifier) => String(verifier.id) === selectedVerifierId,
+                );
+                setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : filteredVerifiers.length > 0 ? 0 : -1);
+              }}
+              onChange={(event) => {
+                onVerifierSearchChange(event.target.value);
+                onSelectedVerifierIdChange("");
+                setDropdownOpen(true);
+                setHighlightedIndex(0);
+              }}
+              onKeyDown={handleComboboxKeyDown}
+              onBlur={() => {
+                window.setTimeout(() => {
+                  setDropdownOpen(false);
+                  setHighlightedIndex(-1);
+                }, 120);
+              }}
+              placeholder="Search verifier name"
+              className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 pr-9 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+            />
+            {verifierSearch ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onVerifierSearchChange("");
+                  onSelectedVerifierIdChange("");
+                  setDropdownOpen(true);
+                  setHighlightedIndex(filteredVerifiers.length > 0 ? 0 : -1);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+                aria-label="Clear verifier search"
+              >
+                ×
+              </button>
+            ) : null}
+
+            {dropdownOpen ? (
+              <div
+                id={`verifier-listbox-${index}`}
+                role="listbox"
+                className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-20 max-h-40 overflow-y-auto border border-[var(--color-border)] bg-white shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+              >
+                {filteredVerifiers.length > 0 ? (
+                  filteredVerifiers.map((verifier, optionIndex) => {
+                    const isSelected = String(verifier.id) === selectedVerifierId;
+                    const isHighlighted = optionIndex === highlightedIndex;
+                    return (
+                      <button
+                        id={`verifier-option-${index}-${verifier.id}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        key={verifier.id}
+                        type="button"
+                        onMouseEnter={() => setHighlightedIndex(optionIndex)}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          handleSelectVerifier(verifier);
+                        }}
+                        className={`flex w-full items-center justify-between px-2.5 py-2 text-left text-xs transition ${
+                          isHighlighted
+                            ? "bg-[var(--color-bg)] text-[var(--color-text)]"
+                            : isSelected
+                            ? "bg-[var(--color-accent)] text-white"
+                            : "text-[var(--color-text)] hover:bg-[var(--color-bg)]"
+                        }`}
+                      >
+                        <span>{verifier.name}</span>
+                        <span className={`ml-2 ${isSelected ? "text-white/85" : "text-[var(--color-text-muted)]"}`}>
+                          {verifier.role}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className="px-2.5 py-2 text-xs text-[var(--color-text-muted)]">No matching verifier found.</p>
+                )}
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onRequestVerification}
