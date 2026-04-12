@@ -68,6 +68,12 @@ interface EditState {
   socialLinks: SocialLinks;
 }
 
+interface VerifierOption {
+  id: number;
+  name: string;
+  role: string;
+}
+
 function getAvailableSocialLinkOptions(socialLinks: SocialLinks) {
   return SOCIAL_LINK_OPTIONS.filter(
     ({ key }) => !Object.prototype.hasOwnProperty.call(socialLinks, key),
@@ -87,6 +93,10 @@ export default function OnboardProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
   const [pendingSocialLink, setPendingSocialLink] = useState<SocialLinkKey | "">("");
+  const [verifiers, setVerifiers] = useState<VerifierOption[]>([]);
+  const [verifierSearchByIndex, setVerifierSearchByIndex] = useState<Record<number, string>>({});
+  const [selectedVerifierByIndex, setSelectedVerifierByIndex] = useState<Record<number, string>>({});
+  const [requestingAchievementIndex, setRequestingAchievementIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -173,6 +183,34 @@ export default function OnboardProfilePage() {
     }
   }, [pendingSocialLink, state]);
 
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/onboard/achievement-verifications/verifiers", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!active || !response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as { verifiers?: VerifierOption[] };
+        setVerifiers(payload.verifiers ?? []);
+      } catch {
+        if (active) {
+          setVerifiers([]);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   if (loading) {
     return <OnboardProfileSkeleton />;
   }
@@ -234,6 +272,72 @@ export default function OnboardProfilePage() {
   }
   function addAchievement() { setState((s) => s && ({ ...s, achievements: [...s.achievements, { ...EMPTY_TIMELINE }] })); }
   function removeAchievement(i: number) { setState((s) => s && ({ ...s, achievements: s.achievements.filter((_, idx) => idx !== i) })); }
+
+  async function requestAchievementVerification(achievementIndex: number) {
+    const selectedVerifier = Number.parseInt(selectedVerifierByIndex[achievementIndex] ?? "", 10);
+
+    if (!Number.isInteger(selectedVerifier) || selectedVerifier <= 0) {
+      setSaveFeedback("Please select a verifier before sending request.");
+      return;
+    }
+
+    setRequestingAchievementIndex(achievementIndex);
+    setSaveFeedback(null);
+
+    try {
+      const response = await fetch("/api/onboard/achievement-verifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          achievementIndex,
+          verifierUserId: selectedVerifier,
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        error?: string;
+        requestedAt?: string;
+        verifier?: { id: number; name: string };
+      };
+
+      if (!response.ok) {
+        setSaveFeedback(payload.error ?? "Unable to submit verification request.");
+        return;
+      }
+
+      setState((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          achievements: current.achievements.map((achievement, index) =>
+            index === achievementIndex
+              ? {
+                  ...achievement,
+                  pendingVerification: {
+                    requestedAt: payload.requestedAt ?? new Date().toISOString(),
+                    verifierUserId: payload.verifier?.id ?? selectedVerifier,
+                    verifierName:
+                      payload.verifier?.name ??
+                      verifiers.find((entry) => entry.id === selectedVerifier)?.name ??
+                      "Assigned verifier",
+                  },
+                }
+              : achievement,
+          ),
+        };
+      });
+      setSaveFeedback("Verification request sent.");
+    } catch {
+      setSaveFeedback("Unable to submit verification request.");
+    } finally {
+      setRequestingAchievementIndex(null);
+    }
+  }
 
   function updateSocialLink(key: SocialLinkKey, value: string) {
     setState((s) =>
@@ -570,13 +674,30 @@ export default function OnboardProfilePage() {
           <Section title="Achievements">
             <div className="flex flex-col gap-4">
               {achievements.map((a, i) => (
-                <TimelineEntryRow
+                <AchievementEntryRow
                   key={i}
                   entry={a}
                   index={i}
                   total={achievements.length}
                   onChange={(field, val) => updateAchievement(i, field, val)}
                   onRemove={() => removeAchievement(i)}
+                  verifierSearch={verifierSearchByIndex[i] ?? ""}
+                  onVerifierSearchChange={(value) =>
+                    setVerifierSearchByIndex((current) => ({
+                      ...current,
+                      [i]: value,
+                    }))
+                  }
+                  selectedVerifierId={selectedVerifierByIndex[i] ?? ""}
+                  onSelectedVerifierIdChange={(value) =>
+                    setSelectedVerifierByIndex((current) => ({
+                      ...current,
+                      [i]: value,
+                    }))
+                  }
+                  verifiers={verifiers}
+                  requesting={requestingAchievementIndex === i}
+                  onRequestVerification={() => void requestAchievementVerification(i)}
                 />
               ))}
             </div>
@@ -678,6 +799,136 @@ function TimelineEntryRow({ entry, index, total, onChange, onRemove }: TimelineE
           className={`${inputCls} resize-y`}
         />
       </div>
+    </div>
+  );
+}
+
+interface AchievementEntryRowProps extends TimelineEntryRowProps {
+  verifiers: VerifierOption[];
+  verifierSearch: string;
+  selectedVerifierId: string;
+  requesting: boolean;
+  onVerifierSearchChange: (value: string) => void;
+  onSelectedVerifierIdChange: (value: string) => void;
+  onRequestVerification: () => void;
+}
+
+function AchievementEntryRow({
+  entry,
+  index,
+  total,
+  onChange,
+  onRemove,
+  verifiers,
+  verifierSearch,
+  selectedVerifierId,
+  requesting,
+  onVerifierSearchChange,
+  onSelectedVerifierIdChange,
+  onRequestVerification,
+}: AchievementEntryRowProps) {
+  const normalizedQuery = verifierSearch.trim().toLowerCase();
+  const filteredVerifiers = normalizedQuery
+    ? verifiers.filter((verifier) => verifier.name.toLowerCase().includes(normalizedQuery))
+    : verifiers;
+
+  const canRequestVerification =
+    entry.title.trim().length > 0 &&
+    entry.period.trim().length > 0 &&
+    !entry.verifiedBy &&
+    !entry.pendingVerification;
+
+  return (
+    <div className="border-[2px] border-[var(--color-border)] bg-[var(--color-surface)] p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[9px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+          Entry {index + 1}
+        </span>
+        {total > 1 && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Title</label>
+          <input
+            type="text"
+            placeholder="e.g. Final Year Project"
+            value={entry.title}
+            onChange={(e) => onChange("title", e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Period</label>
+          <input
+            type="text"
+            placeholder="e.g. Jan 2025 - Apr 2025"
+            value={entry.period}
+            onChange={(e) => onChange("period", e.target.value)}
+            className={inputCls}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-[9px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Details</label>
+        <textarea
+          rows={2}
+          placeholder="Brief description..."
+          value={entry.details ?? ""}
+          onChange={(e) => onChange("details", e.target.value)}
+          className={`${inputCls} resize-y`}
+        />
+      </div>
+
+      {entry.verifiedBy ? (
+        <p className="text-[10px] uppercase tracking-[0.12em] text-emerald-700">
+          Verified by {entry.verifiedBy.name}
+        </p>
+      ) : entry.pendingVerification ? (
+        <p className="text-[10px] uppercase tracking-[0.12em] text-amber-700">
+          Pending verification by {entry.pendingVerification.verifierName}
+        </p>
+      ) : (
+        <div className="grid gap-2 border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+            Request verification
+          </p>
+          <input
+            type="search"
+            value={verifierSearch}
+            onChange={(event) => onVerifierSearchChange(event.target.value)}
+            placeholder="Search verifier name"
+            className="w-full border border-[var(--color-border)] bg-white px-2.5 py-2 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+          />
+          <select
+            value={selectedVerifierId}
+            onChange={(event) => onSelectedVerifierIdChange(event.target.value)}
+            className="w-full cursor-pointer border border-[var(--color-border)] bg-white px-2.5 py-2 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+          >
+            <option value="">Select verifier</option>
+            {filteredVerifiers.map((verifier) => (
+              <option key={verifier.id} value={String(verifier.id)}>
+                {verifier.name} - {verifier.role}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={onRequestVerification}
+            disabled={!canRequestVerification || requesting || !selectedVerifierId}
+            className="w-full border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)] disabled:opacity-50"
+          >
+            {requesting ? "Sending request..." : "Request verification"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

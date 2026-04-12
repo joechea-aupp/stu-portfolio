@@ -29,6 +29,7 @@ async function runBootstrap() {
       UNION ALL SELECT 'roles.create', 'Create Roles', 'Create new administration roles.'
       UNION ALL SELECT 'roles.update', 'Update Roles', 'Attach or detach permissions from roles.'
       UNION ALL SELECT 'roles.assign', 'Assign Roles', 'Assign roles to users.'
+      UNION ALL SELECT 'achievements.verify', 'Verify Achievements', 'Review and approve or reject student achievement verification requests.'
     ) seeded
     WHERE NOT EXISTS (
       SELECT 1
@@ -65,7 +66,8 @@ async function runBootstrap() {
       'users.reset-password',
       'roles.create',
       'roles.update',
-      'roles.assign'
+      'roles.assign',
+      'achievements.verify'
     )
     WHERE r.name = 'ADMIN_SUPER'
   `;
@@ -76,14 +78,14 @@ async function runBootstrap() {
     JOIN roles r ON r.id = rp.role_id
     JOIN permissions p ON p.id = rp.permission_id
     WHERE r.name = 'ADMIN_MANAGER'
-      AND p.\`key\` NOT IN ('users.access', 'roles.assign')
+      AND p.\`key\` NOT IN ('users.access', 'roles.assign', 'achievements.verify')
   `;
 
   await prisma.$executeRaw`
     INSERT IGNORE INTO role_permissions (role_id, permission_id)
     SELECT r.id, p.id
     FROM roles r
-    JOIN permissions p ON p.\`key\` IN ('users.access', 'roles.assign')
+    JOIN permissions p ON p.\`key\` IN ('users.access', 'roles.assign', 'achievements.verify')
     WHERE r.name = 'ADMIN_MANAGER'
   `;
 

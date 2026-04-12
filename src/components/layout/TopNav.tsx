@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
@@ -20,8 +20,21 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
     id: number;
     name: string;
     userType: "STUDENT" | "ADMINISTRATION";
+    permissions: string[];
   } | null>(null);
   const [wasLoggedIn, setWasLoggedIn] = useState(initialKnownSession);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationBusyId, setNotificationBusyId] = useState<number | null>(null);
+  const [notifications, setNotifications] = useState<
+    Array<{
+      id: number;
+      student: { id: number; name: string };
+      achievement: { title: string; period: string; details: string } | null;
+      requestedAt: string;
+    }>
+  >([]);
 
   useLayoutEffect(() => {
     function syncKnownSession() {
@@ -37,6 +50,7 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
   }, []);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const notificationPanelRef = useRef<HTMLDivElement | null>(null);
   const [theme, setTheme] = useState<ThemeName>(() => {
     if (typeof window === "undefined") {
       return defaultTheme;
@@ -54,13 +68,17 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
   }, [theme]);
 
   useEffect(() => {
-    if (!accountMenuOpen) {
+    if (!accountMenuOpen && !notificationOpen) {
       return;
     }
 
     function handlePointerDown(event: MouseEvent) {
       if (!accountMenuRef.current?.contains(event.target as Node)) {
         setAccountMenuOpen(false);
+      }
+
+      if (!notificationPanelRef.current?.contains(event.target as Node)) {
+        setNotificationOpen(false);
       }
     }
 
@@ -77,10 +95,11 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
       window.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [accountMenuOpen]);
+  }, [accountMenuOpen, notificationOpen]);
 
   useEffect(() => {
     setAccountMenuOpen(false);
+    setNotificationOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -111,6 +130,7 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
             id?: number;
             name?: string;
             userType?: "STUDENT" | "ADMINISTRATION";
+            permissions?: string[];
           };
         };
 
@@ -119,6 +139,7 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
             id: payload.user.id,
             name: payload.user.name,
             userType: payload.user.userType === "ADMINISTRATION" ? "ADMINISTRATION" : "STUDENT",
+            permissions: payload.user.permissions ?? [],
           });
           window.localStorage.setItem("session-known", "true");
         } else {
@@ -153,10 +174,125 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
       window.localStorage.setItem("session-known", "false");
       window.dispatchEvent(new Event("auth-state-changed"));
       setAccountMenuOpen(false);
+      setNotificationOpen(false);
       setCurrentUser(null);
       window.location.href = "/";
     }
   }
+
+  const canVerifyAchievements =
+    currentUser?.userType === "ADMINISTRATION" &&
+    currentUser.permissions.includes("achievements.verify");
+
+  const loadPendingCount = useCallback(async () => {
+    if (!canVerifyAchievements) {
+      setPendingCount(0);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/administration/achievement-verifications/count", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        setPendingCount(0);
+        return;
+      }
+
+      const payload = (await response.json()) as { pendingCount?: number };
+      setPendingCount(typeof payload.pendingCount === "number" ? payload.pendingCount : 0);
+    } catch {
+      setPendingCount(0);
+    }
+  }, [canVerifyAchievements]);
+
+  const loadNotifications = useCallback(async () => {
+    if (!canVerifyAchievements) {
+      setNotifications([]);
+      return;
+    }
+
+    setNotificationLoading(true);
+
+    try {
+      const response = await fetch("/api/administration/achievement-verifications?status=PENDING&limit=8", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        setNotifications([]);
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        requests?: Array<{
+          id: number;
+          student: { id: number; name: string };
+          achievement: { title: string; period: string; details: string } | null;
+          requestedAt: string;
+        }>;
+      };
+
+      setNotifications(payload.requests ?? []);
+    } catch {
+      setNotifications([]);
+    } finally {
+      setNotificationLoading(false);
+    }
+  }, [canVerifyAchievements]);
+
+  async function runNotificationAction(requestId: number, action: "approve" | "reject") {
+    const rejectionReason =
+      action === "reject"
+        ? window.prompt("Enter rejection reason", "Insufficient supporting evidence.")?.trim() ?? ""
+        : "";
+
+    if (action === "reject" && !rejectionReason) {
+      return;
+    }
+
+    setNotificationBusyId(requestId);
+
+    try {
+      await fetch("/api/administration/achievement-verifications", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestId,
+          action,
+          rejectionReason: action === "reject" ? rejectionReason : undefined,
+        }),
+      });
+    } finally {
+      setNotificationBusyId(null);
+      await loadNotifications();
+      await loadPendingCount();
+    }
+  }
+
+  useEffect(() => {
+    if (!canVerifyAchievements) {
+      setPendingCount(0);
+      setNotifications([]);
+      return;
+    }
+
+    void loadPendingCount();
+  }, [canVerifyAchievements, loadPendingCount, pathname]);
+
+  useEffect(() => {
+    if (!notificationOpen || !canVerifyAchievements) {
+      return;
+    }
+
+    void loadNotifications();
+    void loadPendingCount();
+  }, [canVerifyAchievements, loadNotifications, loadPendingCount, notificationOpen]);
 
   return (
     <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -202,6 +338,90 @@ export function TopNav({ initialKnownSession }: { initialKnownSession: boolean }
             )
           ) : currentUser ? (
             <div className="relative" ref={accountMenuRef}>
+              {canVerifyAchievements ? (
+                <div className="relative mr-2 inline-block" ref={notificationPanelRef}>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationOpen((open) => !open)}
+                    aria-expanded={notificationOpen}
+                    aria-haspopup="menu"
+                    aria-label="Open achievement verification notifications"
+                    className="relative inline-flex h-9 w-9 items-center justify-center border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-[1.8]" aria-hidden="true">
+                      <path d="M6.5 10.25a5.5 5.5 0 1111 0v4.08l1.06 1.98c.28.52-.08 1.19-.67 1.19H5.11c-.59 0-.95-.67-.67-1.19L5.5 14.33v-4.08z" />
+                      <path d="M10 19.5a2 2 0 004 0" strokeLinecap="round" />
+                    </svg>
+                    {pendingCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-[var(--color-accent)] px-1 text-[9px] font-bold text-white">
+                        {pendingCount > 9 ? "9+" : pendingCount}
+                      </span>
+                    ) : null}
+                  </button>
+
+                  {notificationOpen ? (
+                    <div className="absolute right-0 top-[calc(100%+0.5rem)] z-20 w-[340px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                          Verification requests
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void loadNotifications();
+                            void loadPendingCount();
+                          }}
+                          className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                        >
+                          Refresh
+                        </button>
+                      </div>
+
+                      {notificationLoading ? (
+                        <p className="text-xs text-[var(--color-text-muted)]">Loading...</p>
+                      ) : notifications.length === 0 ? (
+                        <p className="text-xs text-[var(--color-text-muted)]">No pending requests.</p>
+                      ) : (
+                        <div className="max-h-[360px] space-y-2 overflow-y-auto">
+                          {notifications.map((request) => (
+                            <div key={request.id} className="border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
+                              <p className="text-[11px] font-semibold text-[var(--color-text)]">{request.student.name}</p>
+                              <p className="text-[11px] text-[var(--color-text-muted)]">{request.achievement?.title ?? "Achievement missing"}</p>
+                              <p className="text-[10px] text-[var(--color-text-muted)]">{request.achievement?.period ?? "-"}</p>
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={notificationBusyId === request.id}
+                                  onClick={() => void runNotificationAction(request.id, "approve")}
+                                  className="flex-1 border border-emerald-600 bg-emerald-600 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white disabled:opacity-50"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={notificationBusyId === request.id}
+                                  onClick={() => void runNotificationAction(request.id, "reject")}
+                                  className="flex-1 border border-rose-600 bg-rose-600 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <Link
+                        href="/onboard/administration?tab=achievements"
+                        className="mt-3 inline-flex w-full items-center justify-center border border-[var(--color-border-strong)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                      >
+                        Open full review queue
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => setAccountMenuOpen((open) => !open)}

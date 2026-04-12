@@ -9,6 +9,7 @@ export const RBAC_PERMISSION = {
   ROLES_CREATE: "roles.create",
   ROLES_UPDATE: "roles.update",
   ROLES_ASSIGN: "roles.assign",
+  ACHIEVEMENTS_VERIFY: "achievements.verify",
 } as const;
 
 export type RbacPermission = (typeof RBAC_PERMISSION)[keyof typeof RBAC_PERMISSION];

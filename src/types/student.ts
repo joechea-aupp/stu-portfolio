@@ -18,6 +18,11 @@ export interface TimelineItem {
   title: string;
   details?: string;
   verifiedBy?: Verifier;
+  pendingVerification?: {
+    requestedAt: string;
+    verifierUserId: number;
+    verifierName: string;
+  };
   /** URL-safe identifier used to route to the item's detail page. */
   slug?: string;
   /** Full markdown content for the item's detail page. */
